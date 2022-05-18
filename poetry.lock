@@ -1,4 +1,16 @@
 [[package]]
+name = "mpmath"
+version = "1.2.1"
+description = "Python library for arbitrary-precision floating-point arithmetic"
+category = "main"
+optional = false
+python-versions = "*"
+
+[package.extras]
+develop = ["pytest (>=4.6)", "pycodestyle", "pytest-cov", "codecov", "wheel"]
+tests = ["pytest (>=4.6)"]
+
+[[package]]
 name = "numpy"
 version = "1.22.3"
 description = "NumPy is the fundamental package for array computing with Python."
@@ -6,12 +18,27 @@ category = "main"
 optional = false
 python-versions = ">=3.8"
 
+[[package]]
+name = "sympy"
+version = "1.10.1"
+description = "Computer algebra system (CAS) in Python"
+category = "main"
+optional = false
+python-versions = ">=3.7"
+
+[package.dependencies]
+mpmath = ">=0.19"
+
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8,<3.11"
-content-hash = "1e64c40502001812cef8371baa5663ad751b5edbb336ecdb5ff0ab90f87d3a03"
+content-hash = "65fbdfb780adb9609b447ff9096384dc9b85aebf58d0bc9eabf74d5c0de7a4f5"
 
 [metadata.files]
+mpmath = [
+    {file = "mpmath-1.2.1-py3-none-any.whl", hash = "sha256:604bc21bd22d2322a177c73bdb573994ef76e62edd595d17e00aff24b0667e5c"},
+    {file = "mpmath-1.2.1.tar.gz", hash = "sha256:79ffb45cf9f4b101a807595bcb3e72e0396202e0b1d25d689134b48c4216a81a"},
+]
 numpy = [
     {file = "numpy-1.22.3-cp310-cp310-macosx_10_14_x86_64.whl", hash = "sha256:92bfa69cfbdf7dfc3040978ad09a48091143cffb778ec3b03fa170c494118d75"},
     {file = "numpy-1.22.3-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:8251ed96f38b47b4295b1ae51631de7ffa8260b5b087808ef09a39a9d66c97ab"},
@@ -33,4 +60,8 @@ numpy = [
     {file = "numpy-1.22.3-cp39-cp39-win_amd64.whl", hash = "sha256:639b54cdf6aa4f82fe37ebf70401bbb74b8508fddcf4797f9fe59615b8c5813a"},
     {file = "numpy-1.22.3-pp38-pypy38_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:c34ea7e9d13a70bf2ab64a2532fe149a9aced424cd05a2c4ba662fd989e3e45f"},
     {file = "numpy-1.22.3.zip", hash = "sha256:dbc7601a3b7472d559dc7b933b18b4b66f9aa7452c120e87dfb33d02008c8a18"},
+]
+sympy = [
+    {file = "sympy-1.10.1-py3-none-any.whl", hash = "sha256:df75d738930f6fe9ebe7034e59d56698f29e85f443f743e51e47df0caccc2130"},
+    {file = "sympy-1.10.1.tar.gz", hash = "sha256:5939eeffdf9e152172601463626c022a2c27e75cf6278de8d401d50c9d58787b"},
 ]
