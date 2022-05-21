@@ -2,6 +2,7 @@
 #                              Package and Modules                             #
 # ---------------------------------------------------------------------------- #
 
+from timeit import timeit
 import numpy as np
 import numpy.linalg as la
 from sympy import Matrix
@@ -98,6 +99,27 @@ def lin_ind(*args: Union[np.ndarray, List, Tuple]) -> Union[None, np.ndarray]:
         # Return non-pivot columns
         return np.delete(args, pivot_indices, axis=0)
 
+# ------------------------------- Gram-schmidt ------------------------------- #
+
+
+def gs(X):
+    """
+    This function creates an orthogonal matrix (a set of orthonormal basis vectors)
+    given an input matrix `X`.
+
+    Parameters
+    ----------
+    X : np.ndarray
+        An input matrix.
+
+    Returns
+    -------
+    np.ndarray
+        An orthogonal matrix.
+    """
+    Q, R = np.linalg.qr(X)
+    return Q
+
 
 if __name__ == '__main__':
 
@@ -156,3 +178,15 @@ if __name__ == '__main__':
         0, 0, 4, 1], [0, 1, 0, 0], [2, 3, 4, 9])
 
     lin_ind([1, 2], [2, 4], [2, 1])
+
+    # ------------------------------- Tests for gs ------------------------------- #
+
+    # Singular
+    gs(np.array([[1, 0],
+                 [0, 0]], dtype=np.float_))
+
+    # Non-square
+    gs(np.array([[3, 2, 3],
+                 [2, 5, -1],
+                 [2, 4, 8],
+                 [12, 2, 1]], dtype=np.float_))
