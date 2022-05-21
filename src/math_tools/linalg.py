@@ -2,7 +2,6 @@
 #                              Package and Modules                             #
 # ---------------------------------------------------------------------------- #
 
-from timeit import timeit
 import numpy as np
 import numpy.linalg as la
 from sympy import Matrix
@@ -117,8 +116,7 @@ def gs(X):
     np.ndarray
         An orthogonal matrix.
     """
-    Q, R = np.linalg.qr(X)
-    return Q
+    return la.qr(X)[0]
 
 
 if __name__ == '__main__':
