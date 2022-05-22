@@ -22,7 +22,7 @@ def cob(vector: Union[np.ndarray, List, Tuple], *args: Union[np.ndarray, List, T
     vector : Union[np.ndarray, List, Tuple]
         An n-dimensional vector.
     args : Union[np.ndarray, List, Tuple]
-        An arbitrary number of pairwise orthogonal n-dimensional vectors.
+        An arbitrary number of pairwise orthogonal n-dimensional basis vectors.
 
     Returns
     -------
@@ -35,6 +35,52 @@ def cob(vector: Union[np.ndarray, List, Tuple], *args: Union[np.ndarray, List, T
     scalar_projections = [np.dot(vector, np.array(basis)) / (la.norm(np.array(basis)))
                           ** 2 for basis in args]
     return np.array(scalar_projections)
+
+# -------------------------- Change of basis matrix -------------------------- #
+
+
+def cob_mat(original_basis: List[List], new_basis: List[List], inv: bool = False) -> np.ndarray:
+    """
+    Find the change of basis matrix `S` from `original_basis` to `new_basis`. The change of basis
+    matrix from basis A to basis B is defined to be:
+
+    .. math::
+        S_{A \rightarrow B}=\left[\begin{array}{ccc} \mid & & \mid \\
+        {\left[a_{1}\right]_{B}} & \cdots & {\left[a_{n}\right]_{B}} \\
+            \mid & & \mid
+            \end{array}\right]
+
+    Parameters
+    ----------
+    original_basis : List[List]
+        A set of `n` basis vectors for :math:`R^{n}` or `m` basis vectors for a subspace of :math:`R^{n}`.
+    new_basis : List[List]
+        A set of `n` basis vectors for :math:`R^{n}` or `m` basis vectors for a subspace of :math:`R^{n}`.
+    inv : bool, optional
+        Whether to return the inverse of the change of basis matrix, by default False.
+
+    Returns
+    -------
+    np.ndarray
+        The change of basis matrix or the inverse of it, which translates from `new_basis` back to `original_basis`.
+    """
+    # Matrix with new basis vectors as columns
+    mat_new_basis = np.stack(new_basis, axis=1)
+
+    # Convert each element (vector) in 'original_basis' to np.ndarray
+    original_basis = [np.array(vec) for vec in original_basis]
+
+    # Find coordinate vectors of original basis vectors with respect to new basis vectors
+    list_of_coord_vectors = [la.lstsq(mat_new_basis, vec, rcond=None)[0]
+                             for vec in original_basis]
+
+    # Concatenate coordinate vectors (np.ndarray) to form change of basis vectors
+    if (inv):
+        cob = np.stack(list_of_coord_vectors, axis=1)
+        return la.inv(cob)
+    else:
+        return np.stack(list_of_coord_vectors, axis=1)
+
 
 # ---------- Scalar or vector projection of one vector onto another ---------- #
 
@@ -101,22 +147,34 @@ def lin_ind(*args: Union[np.ndarray, List, Tuple]) -> Union[None, np.ndarray]:
 # ------------------------------- Gram-schmidt ------------------------------- #
 
 
-def gs(X):
+def gs(X: Union[List[List], np.ndarray]) -> np.ndarray:
     """
     This function creates an orthogonal matrix (a set of orthonormal basis vectors)
     given an input matrix `X`.
 
     Parameters
     ----------
-    X : np.ndarray
-        An input matrix.
+    X : Union[List[List], np.ndarray]
+        A set of basis vectors to be orthogonalized and normalized or a matrix with basis vectors to be orthogonalized and normalized as its columns.
 
     Returns
     -------
     np.ndarray
-        An orthogonal matrix.
+        A set of orthonormal basis vectors or an orthogonal matrix, depending on the input type.
     """
-    return la.qr(X)[0]
+
+    if (isinstance(X, list)):
+        # Create orthogonal matrix
+        X = np.stack(X, axis=1)
+        orthogonal_mat = la.qr(X)[0]
+
+        # Return a list of orthonormal basis vectors
+        num_basis_vectors = orthogonal_mat.shape[1]
+        orthonormal_vectors = [orthogonal_mat[:, col_vec]
+                               for col_vec in range(num_basis_vectors)]
+        return orthonormal_vectors
+    elif (isinstance(X, np.ndarray)):
+        return la.qr(X)[0]
 
 
 if __name__ == '__main__':
@@ -188,3 +246,29 @@ if __name__ == '__main__':
                  [2, 5, -1],
                  [2, 4, 8],
                  [12, 2, 1]], dtype=np.float_))
+
+    # Pass a list of vectors
+    gs([[3, 2, 2, 12],
+        [2, 5, 4, 2],
+        [3, -1, 8, 1]])
+
+    # ----------------------------- Tests for cob_mat ---------------------------- #
+
+    # Subspace (a plane) of R3
+    cob_mat([[1, 2, -3], [4, -1, -3]], [[0, 1, -1], [1, 0, -1]], False)
+    cob_mat([[1, 2, -3], [4, -1, -3]], [[0, 1, -1], [1, 0, -1]], True)
+
+    # Bases for R3
+    mat = cob_mat([[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+                  [[2, 1, 0], [1, -2, -1], [-1, 2, -5]],
+                  False)
+    # This should be equal
+    np.allclose(
+        a=mat @ np.array([1, 1, 1]),
+        b=cob(
+            np.array([1, 1, 1]),
+            np.array([2, 1, 0]),
+            np.array([1, -2, -1]),
+            np.array([-1, 2, -5])
+        )
+    )
