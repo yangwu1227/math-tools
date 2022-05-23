@@ -295,7 +295,7 @@ class MyMatrix:
 
     def gs(self, ret_type: str = 'matrix') -> np.ndarray:
         """
-        This function creates an orthogonal matrix (a set of orthonormal basis vectors)
+        Create an orthogonal matrix (a set of orthonormal basis vectors)
         for matrix `X`.
 
         Parameters
@@ -372,6 +372,30 @@ class MyMatrix:
             A class instance inheriting from the Base class for algebraic expressions `Expr`.
         """
         return Matrix(self.X).charpoly().as_expr()
+
+    # ------------------------------ Diagonalization ----------------------------- #
+
+    def diagonalize(self, reals_only: bool = False, sort: bool = False, normalize: bool = False) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Return (P, D), where D is a diagonal D = P^-1 * M * P where M is current matrix.
+
+        Parameters
+        ----------
+        reals_only : bool, optional
+            Whether to throw an error if complex numbers are need to diagonalize, by default False.
+        sort : bool, optional
+            Whether to sort the eigenvalues along the diagonal, by default False.
+        normalize : bool, optional
+            Whether to normalize the eigenvector columns of P, by default False.
+
+        Returns
+        -------
+        Tuple[np.ndarray, np.ndarray]
+            A tuple (P, D).
+        """
+        P, D = Matrix(self.X).diagonalize(
+            reals_only=reals_only, sort=sort, normalize=normalize)
+        return np.array(P, dtype=np.float_), np.array(D, dtype=np.float_)
 
 
 if __name__ == '__main__':
@@ -495,10 +519,10 @@ if __name__ == '__main__':
     MyMatrix.default([[-3, 2], [8, 3]]).eigen()
 
     # Fifth example
-    MyMatrix.default([[5, -4], [4, -3]]).eigen()
+    MyMatrix.default([[5, -4], [4, -3]]).eigen(real=False)
 
     # Sixth example
-    MyMatrix.default([[-2, 1], [-3, 1]]).eigen()
+    MyMatrix.default([[-2, 1], [-3, 1]]).eigen(real=False)
 
     # ---------------------------- Tests for char_poly --------------------------- #
 
@@ -519,3 +543,14 @@ if __name__ == '__main__':
 
     # Sixth example
     MyMatrix.default([[-2, 1], [-3, 1]]).char_poly()
+
+    # --------------------------- Tests for diagonalize -------------------------- #
+
+    # First example
+    MyMatrix.default([[6, 2], [-1, 3]]).diagonalize()
+
+    # First example
+    MyMatrix.default([[2, 0], [7, -1]]).diagonalize()
+
+    # Third example
+    MyMatrix.default([[1, 2], [0, -1]]).diagonalize()
