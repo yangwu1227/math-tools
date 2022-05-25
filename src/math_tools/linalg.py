@@ -4,7 +4,7 @@
 
 import numpy as np
 import numpy.linalg as la
-from sympy import Matrix
+from sympy import Matrix, euler_equations
 from sympy.core.expr import Expr
 from scipy.linalg import eig
 
@@ -111,6 +111,7 @@ class MyMatrix:
             X (np.ndarray): A matrix.
             row (int): Number of rows.
             col (int): Number of columns.
+            det (np.ndarray): The determinant of X.
     """
     # ---------------------------------------------------------------------------- #
     #                                 Constructors                                 #
@@ -129,6 +130,7 @@ class MyMatrix:
         # Other instance attributes
         self.row = self.X.shape[0]
         self.col = self.X.shape[1]
+        self.det = la.det(self.X)
 
     @classmethod
     def default(cls, X: Union[List[List], Tuple[Tuple]], axis: int = 1) -> None:
@@ -225,6 +227,11 @@ class MyMatrix:
         """
         return cls(np.eye(N=N, M=M, k=k, dtype=dtype))
 
+    # --------------------------------- Printing --------------------------------- #
+
+    def __repr__(self) -> str:
+        return repr(self.X)
+
     # ---------------------------------------------------------------------------- #
     #                                Static methods                                #
     # ---------------------------------------------------------------------------- #
@@ -290,6 +297,58 @@ class MyMatrix:
             True if square or False if non-square.
         """
         return self.row == self.col
+
+    # ------------------------------- Compute rref ------------------------------- #
+
+    def rref(self, pivots: bool = False) -> Union[np.ndarray, Tuple[np.ndarray, tuple]]:
+        """
+        Return the reduced row-echelon form of the matrix. Use `pivots` to return 
+        the indices of pivot columns.
+
+        Parameters
+        ----------
+        pivots : bool, optional
+            Whether to return a tuple of pivot indices, by default False.
+
+        Returns
+        -------
+        np.ndarray or tuple
+            The reduced row-echelon from or a tuple of pivot column indices.
+        """
+        if pivots:
+            mat, piv = Matrix(self.X).rref(pivots=pivots)
+            return np.array(mat, dtype=np.float_), piv
+        else:
+            mat = Matrix(self.X).rref(pivots=pivots)
+            return np.array(mat, dtype=np.float_)
+
+    # -------------------- Column space (image) of the matrix -------------------- #
+
+    def col_space(self) -> List[np.ndarray]:
+        """
+        Returns a list of vectors (np.ndarray objects) that span the column-space or image of X.
+
+        Returns
+        -------
+        List[np.ndarray]
+            A list of columns vectors.
+        """
+        return [np.array(col, dtype=np.float_)
+                for col in Matrix(self.X).columnspace()]
+
+    # --------------------- Null space (kernel) of the matrix -------------------- #
+
+    def null_space(self) -> List[np.ndarray]:
+        """
+        Returns a list of vectors (np.ndarray objects) that span the null-space or kernel of X.
+
+        Returns
+        -------
+        List[np.ndarray]
+            A list of columns vectors.
+        """
+        return [np.array(col, dtype=np.float_)
+                for col in Matrix(self.X).nullspace()]
 
     # ------------------------------- Gram-schmidt ------------------------------- #
 
