@@ -571,12 +571,12 @@ class MyMatrix:
 
             # Create a diagonal matrix with the singular values on the diagonal
             if m_or_n == self.row:
-                # For m < n, higher dimensional (domain R^n) vector space mapping to lower dimensional (co-domain R^m) vector space
-                # The zero matrix (m, n - m) is concatenated to diag(s) along last axis '-1' (the columns)
+                # For m < n, this is a higher dimensional (domain R^n) vector space mapping to lower dimensional (co-domain R^m) vector space
+                # The zero matrix (m, n - m) is concatenated to diag(s) along last axis '-1' (column-bind)
                 return u, np.r_['-1', np.diag(s), np.zeros((self.row, self.col - self.row), dtype=complex)], vh
             elif m_or_n == self.col:
-                # For m > n, lower dimensional (domain R^m) vector space mapping to higher dimensional (co-domain R^n) vector space
-                # The zero matrix (m - n, n) is stacked below diag(s) along the first axis '0' (the rows)
+                # For m > n, this is a lower dimensional (domain R^n) vector space mapping to higher dimensional (co-domain R^m) vector space
+                # The zero matrix (m - n, n) is stacked below diag(s) along the first axis '0' (row-bind)
                 return u, np.r_[np.diag(s), np.zeros((self.row - self.col, self.col), dtype=complex)]
 
 
