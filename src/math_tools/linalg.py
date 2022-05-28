@@ -4,7 +4,7 @@
 
 import numpy as np
 import numpy.linalg as la
-from sympy import Matrix, euler_equations
+from sympy import Matrix
 from sympy.core.expr import Expr
 from scipy.linalg import eig
 
@@ -298,6 +298,26 @@ class MyMatrix:
         """
         return self.row == self.col
 
+    # ------------------- Check if matrix is positive definite ------------------- #
+
+    def is_pos_def(self) -> bool:
+        """
+        Check if matrix `X` is positive definite. A symmetric matrix A is positive definite if 
+        (and only if) all of its eigenvalues are positive. The matrix A is positive sem-definite
+        if  (and only if) all of its eigenvalues are non-negative (positive or zero).
+
+        Returns
+        -------
+        bool
+            True if positive definite or False if non-positive definite.
+        """
+        try:
+            # Will raise an exception if matrix is not positive definite
+            np.linalg.cholesky(self.X)
+            return True
+        except la.LinAlgError:
+            return False
+
     # ------------------------------- Compute rref ------------------------------- #
 
     def rref(self, pivots: bool = False) -> Union[np.ndarray, Tuple[np.ndarray, tuple]]:
@@ -349,6 +369,63 @@ class MyMatrix:
         """
         return [np.array(col, dtype=np.float_)
                 for col in Matrix(self.X).nullspace()]
+
+    # ---------------------------------- Inverse --------------------------------- #
+
+    def inv(self) -> np.ndarray:
+        """
+        Given a square matrix `X`, return the matrix `Xinv` satisfying `dot(X, Xinv) = dot(Xinv, X) = eye(X.shape[0])`.
+
+        Returns
+        -------
+        np.ndarray
+            The inverse of X.
+
+        Raises
+        ------
+        la.LinAlgError
+            If `X` is not square or inversion fails..
+        """
+        return la.inv(self.X)
+
+    # ----------------------- Moore-Penrose Pseudo-Inverse ----------------------- #
+
+    def pinv(self) -> np.ndarray:
+        """
+        Compute the (Moore-Penrose) pseudo-inverse of a matrix. Calculate the generalized inverse of a matrix using its singular-value decomposition (SVD) 
+        and including all large singular values.
+
+        Returns
+        -------
+        B : (..., N, M) ndarray
+            The pseudo-inverse of `X`.
+
+        Raises
+        ------
+        LinAlgError
+            If the SVD computation does not converge.
+
+        Notes
+        -----
+        The pseudo-inverse of a matrix A, denoted :math:`A^+`, is
+        defined as: "the matrix that 'solves' [the least-squares problem]
+        :math:`Ax = b`," i.e., if :math:`\\bar{x}` is said solution, then
+        :math:`A^+` is that matrix such that :math:`\\bar{x} = A^+b`.
+        It can be shown that if :math:`Q_1 \\Sigma Q_2^T = A` is the singular
+        value decomposition of A, then
+        :math:`A^+ = Q_2 \\Sigma^+ Q_1^T`, where :math:`Q_{1,2}` are
+        orthogonal matrices, :math:`\\Sigma` is a diagonal matrix consisting
+        of A's so-called singular values, (followed, typically, by
+        zeros), and then :math:`\\Sigma^+` is simply the diagonal matrix
+        consisting of the reciprocals of A's singular values
+        (again, followed by zeros). [1]_
+
+        References
+        ----------
+        .. [1] G. Strang, *Linear Algebra and Its Applications*, 2nd Ed., Orlando,
+            FL, Academic Press, Inc., 1980, pp. 139-142.
+        """
+        return la.pinv(a=self.X, rcond=1e-15, hermitian=False)
 
     # ------------------------------- Gram-schmidt ------------------------------- #
 
@@ -455,6 +532,52 @@ class MyMatrix:
         P, D = Matrix(self.X).diagonalize(
             reals_only=reals_only, sort=sort, normalize=normalize)
         return np.array(P, dtype=np.float_), np.array(D, dtype=np.float_)
+
+    # ----------------------- Singular Value Decomposition ----------------------- #
+
+    def svd(self, full_matrices: bool = True, sigma_only: bool = False) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Factorizes the matrix X into two unitary matrices U and Vh, and a 1-D array s of singular values (real, non-negative) 
+        such that a == U @ S @ Vh, where S is a suitably shaped matrix of zeros with main diagonal s.
+
+        Parameters
+        ----------
+        full_matrices : bool, optional
+            If True, u and vh have the shapes (..., M, M) and (..., N, N), respectively. 
+            Otherwise, the shapes are (..., M, K) and (..., K, N), respectively, where 
+            K = min(M, N)., by default True.
+        sigma_only : bool, optional
+            Whether to return the singular values only, by default False, which constructs 
+            the sigma matrix in SVD from the singular values.
+
+        Returns
+        -------
+        Tuple[np.ndarray, np.ndarray, np.ndarray]
+            A tuple of three matrices: U (m x m), S (m x n), V^T (n x n).
+        """
+        # The vector s contains the singular values of self.X arranged in descending order of size
+        u, s, vh = la.svd(
+            a=self.X,
+            full_matrices=full_matrices,
+            compute_uv=True,
+            hermitian=False
+        )
+
+        if sigma_only:
+            return u, s, vh
+        else:
+            # Number of singular values
+            m_or_n = len(s)
+
+            # Create a diagonal matrix with the singular values on the diagonal
+            if m_or_n == self.row:
+                # For m < n, higher dimensional (domain R^n) vector space mapping to lower dimensional (co-domain R^m) vector space
+                # The zero matrix (m, n - m) is concatenated to diag(s) along last axis '-1' (the columns)
+                return u, np.r_['-1', np.diag(s), np.zeros((self.row, self.col - self.row), dtype=complex)], vh
+            elif m_or_n == self.col:
+                # For m > n, lower dimensional (domain R^m) vector space mapping to higher dimensional (co-domain R^n) vector space
+                # The zero matrix (m - n, n) is stacked below diag(s) along the first axis '0' (the rows)
+                return u, np.r_[np.diag(s), np.zeros((self.row - self.col, self.col), dtype=complex)]
 
 
 if __name__ == '__main__':
