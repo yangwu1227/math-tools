@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 # ----------------------------- Standard library ----------------------------- #
 
-from typing import Union, List, Tuple
+from typing import Union, List, Tuple, Optional
 
 # --------------- Express vector in terms of new basis vectors --------------- #
 
@@ -608,8 +608,31 @@ class MyMatrix:
 
         # ------------------ Randomized rank-k matrix approximation ------------------ #
 
-        def rapprox_rank_k(k, n_oversamples=None, n_iters=None, return_range=False):
+        def rapprox_rank_k(k: int,
+                           n_oversamples: Optional[int],
+                           n_iters: Optional[int],
+                           return_range: Optional[bool]) -> Union[Tuple[np.ndarray, np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
+            """
+            Computes the rank-k approximation of the matrix X using randomized SVD. The matrix approximation can be
+            constructed as the matrix product `u @ np.diag(s) @ vh` where (u, s, vh) are the tuple returned by calling this method.
 
+            Parameters
+            ----------
+            k : int
+                The rank of the approximation.
+            n_oversamples : Optional[int]
+                Additional number of random vectors to sample the column space of X so as to ensure proper conditioning.
+            n_iters : Optional[int]
+                Number of power iterations.
+            return_range : Optional[bool]
+                Whether to return the orthonormal basis Q for the approximated column space of X.
+
+            Returns
+            -------
+            Union[Tuple[np.ndarray, np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]]
+                The singular values, left, right singular vectors needed to construct the rank-k approximation of the matrix X. 
+                Optionally, the orthonormal basis Q for the approximated column space of X can be returned. 
+            """
             if n_oversamples is None:
                 # If no oversampling parameter is specified, use the default value
                 n_samples = 2 * k
