@@ -95,7 +95,7 @@ def lin_ind(*args: Union[np.ndarray, List, Tuple]) -> Union[None, np.ndarray]:
 
     # If number of  elements in 'pivot_indices' equals the number of input vectors, then the matrix has full rank
     if (len(pivot_indices) == args.shape[0]):
-        print("The matrix with input vectors as columns is full column rank, and so the input vectors are linearly independent")
+        print("The matrix with input vectors as columns has full column rank, and so the input vectors are linearly independent")
         return None
     else:
         # Return non-pivot columns
@@ -106,7 +106,7 @@ def lin_ind(*args: Union[np.ndarray, List, Tuple]) -> Union[None, np.ndarray]:
 
 class MyMatrix:
     """
-    A utility class for matrix.
+    A utility class for matrices.
 
     Attributes:
             X (np.ndarray): A matrix.
@@ -282,6 +282,34 @@ class MyMatrix:
         else:
             return np.stack(list_of_coord_vectors, axis=1)
 
+    # ----------- Test for coordinate vector with respect basis vectors ---------- #
+
+    @staticmethod
+    def is_coord_vec(original_vec: Union[np.ndarray, List, Tuple], coord_vec: Union[np.ndarray, List, Tuple], *args: Union[np.ndarray, List, Tuple]) -> bool:
+        """
+        Test if `coord_vec` is the coordinate vector with respect to a set of basis vectors `basis_vecs`.
+
+        Parameters
+        ----------
+        original_vec : Union[np.ndarray, List, Tuple]
+            The original vector in its original coordinate.
+        coord_vec : Union[np.ndarray, List, Tuple]
+            A coordinate vector.
+        args : Union[np.ndarray, List, Tuple]
+            An arbitrary number of basis vectors.
+
+        Returns
+        -------
+        bool
+            Whether `coord_vec` is the coordinate vector with respect to the basis vectors.
+        """
+        sum_vec = np.zeros_like(original_vec)
+        # Sum the basis vectors scaled by their corresponding coefficients in the coordinate vector
+        for basis_vec, coef in zip(args, coord_vec):
+            sum_vec = np.add(sum_vec, coef * np.array(basis_vec))
+
+        return np.allclose(sum_vec, np.array(original_vec))
+
     # ---------------------------------------------------------------------------- #
     #                               Instance methods                               #
     # ---------------------------------------------------------------------------- #
@@ -446,7 +474,7 @@ class MyMatrix:
             A set of orthonormal basis vectors or an orthogonal matrix, depending on the `ret_type` argument.
         """
         if (ret_type == 'vector'):
-           # Create orthogonal matrix
+            # Create orthogonal matrix
             orthogonal_mat = la.qr(self.X)[0]
 
             # Return a list of orthonormal basis vectors
