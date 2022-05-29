@@ -4,9 +4,10 @@
 
 import numpy as np
 import numpy.linalg as la
+from scipy.linalg import eig, svdvals
 from sympy import Matrix
 from sympy.core.expr import Expr
-from scipy.linalg import eig
+import matplotlib.pyplot as plt
 
 # ----------------------------- Standard library ----------------------------- #
 
@@ -533,7 +534,7 @@ class MyMatrix:
             reals_only=reals_only, sort=sort, normalize=normalize)
         return np.array(P, dtype=np.float_), np.array(D, dtype=np.float_)
 
-    # ----------------------- Singular Value Decomposition ----------------------- #
+    # ----------------------- Singular value decomposition ----------------------- #
 
     def svd(self, full_matrices: bool = True, sigma_only: bool = False) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
@@ -579,160 +580,86 @@ class MyMatrix:
                 # The zero matrix (m - n, n) is stacked below diag(s) along the first axis '0' (row-bind)
                 return u, np.r_[np.diag(s), np.zeros((self.row - self.col, self.col), dtype=complex)]
 
+        # ------------------------ Rank-k matrix approximation ----------------------- #
 
-if __name__ == '__main__':
+        def approx_rank_k(self, k: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+            """
+            Computes the rank-k approximation of the matrix X. The matrix approximation can be
+            constructed as the matrix product `u @ np.diag(s) @ vh` where (u, s, vh) are the 
+            tuple returned by calling this method.
 
-    # ------------------------------- Tests for cob ------------------------------ #
+            Parameters
+            ----------
+            k : int
+                The rank of the approximation.
 
-    # Run one
-    cob(np.array([10, -5]), np.array([3, 4]), np.array([4, -3]))
+            Returns
+            -------
+            Tuple[np.ndarray, np.ndarray, np.ndarray]
+                The singular values, left, right singular vectors needed to construct the rank-k approximation of the matrix X.
+            """
+            # Compute the singular values
+            u, s, vh = self.svd(sigma_only=True)
 
-    # Run two
-    cob(
-        np.array([2, 2]),
-        np.array([-3, 1]),
-        np.array([1, 3])
-    )
+            # Return the necessary values and vectors to construct the rank-k approximation
+            # The first k left and right singular vectors
+            # And also the first k singular values, sorted in descending order
+            return u[:, :k], s[:k], vh[:k, :]
 
-    # Run three
-    cob(
-        np.array([1, 1, 1]),
-        np.array([2, 1, 0]),
-        np.array([1, -2, -1]),
-        np.array([-1, 2, -5])
-    )
+        # ------------------ Randomized rank-k matrix approximation ------------------ #
 
-    # Run four
-    cob(
-        np.array([1, 1, 2, 3]),
-        np.array([1, 0, 0, 0]),
-        np.array([0, 2, -1, 0]),
-        np.array([0, 1, 2, 0]),
-        np.array([0, 0, 0, 3])
-    )
+        def rapprox_rank_k(k, n_oversamples=None, n_iters=None, return_range=False):
 
-    # Run five
-    cob(
-        np.array([-4, -3, 8]),
-        np.array([1, 2, 3]),
-        np.array([-2, 1, 0]),
-        np.array([-3, -6, 5])
-    )
+            if n_oversamples is None:
+                # If no oversampling parameter is specified, use the default value
+                n_samples = 2 * k
+            else:
+                n_samples = k + n_oversamples
 
-    # ------------------------------ Tests for proj ------------------------------ #
+            # Random projection matrix P (sampled from the column space of X)
+            P = np.random.randn(self.col, n_samples)
+            Z = self.X @ P
 
-    # One
-    proj(np.array([2, 4, 0]), np.array([4, 2, 4]), 'scalar')
+            # If number of power iterations is specified
+            if n_iters:
+                for _ in range(n_iters):
+                    Z = self.X @ (self.X.T @ Z)
+                Q = self.gs(Z)
+            else:
+                # If no power iteration, simply find the orthonormal basis of Z
+                Q = self.gs(Z)
 
-    # Two
-    proj(np.array([2, 1]), np.array([3, -4]), 'scalar')
+            # Compute SVD on projected low-rank Y = Q.T @ self.X
+            Y = Q.T @ self.X
+            U_tilde, S, Vt = la.svd(Y)
+            U = Q @ U_tilde
 
-    # ---------------------------- Tests for lin_indep --------------------------- #
+            # Useful for computing the actual error of approximation
+            if return_range:
+                return U[:, :k], S[:k], Vt[:k, :], Q
+            return U[:, :k], S[:k], Vt[:k, :]
 
-    # Linearly independent inputs
-    lin_ind([1, 0, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1], [0, 1, 0, 0])
+        # --------------------------- Singular value plots --------------------------- #
 
-    # Linearly dependent inputs
-    lin_ind([1, 0, 0, 0], [1, 9, 3, 0], [
-        0, 0, 4, 1], [0, 1, 0, 0], [2, 3, 4, 9])
+        def sv_plot(self):
+            """
+            Plot the log and cumulative sum of singular values of the matrix X. This can be
+            used to visually assess how much information is captured by the first k-rank of 
+            the matrix X, so that a sensible number can be selected for `k` for rank-k matrix 
+            approximation.
+            """
+            s = svdvals(self.X)
 
-    lin_ind([1, 2], [2, 4], [2, 1])
+            # Plot of the log of singular values
+            plt.figure(num='Log of Singular Values')
+            plt.semilogy(s)
+            plt.title('Log of Singular Values')
+            plt.xlabel('Rank')
+            plt.show()
 
-    # ------------------------------- Tests for gs ------------------------------- #
-
-    # Singular
-    MyMatrix.from_numpy(np.array([[1, 0],
-                                  [0, 0]], dtype=np.float_)).gs(ret_type='matrix')
-    MyMatrix.from_numpy(np.array([[1, 0],
-                                  [0, 0]], dtype=np.float_)).gs(ret_type='vector')
-
-    # Non-square
-    MyMatrix.from_numpy(np.array([[3, 2, 3],
-                                  [2, 5, -1],
-                                  [2, 4, 8],
-                                  [12, 2, 1]], dtype=np.float_)).gs(ret_type='matrix')
-    MyMatrix.from_numpy(np.array([[3, 2, 3],
-                                  [2, 5, -1],
-                                  [2, 4, 8],
-                                  [12, 2, 1]], dtype=np.float_)).gs(ret_type='vector')
-
-    # Pass a list of vectors
-    MyMatrix.default([[3, 2, 2, 12],
-                      [2, 5, 4, 2],
-                      [3, -1, 8, 1]]).gs(ret_type='matrix')
-    MyMatrix.default([[3, 2, 2, 12],
-                      [2, 5, 4, 2],
-                      [3, -1, 8, 1]]).gs(ret_type='vector')
-
-    # ----------------------------- Tests for cob_mat ---------------------------- #
-
-    # Subspace (a plane) of R3
-    MyMatrix.cob_mat([[1, 2, -3], [4, -1, -3]],
-                     [[0, 1, -1], [1, 0, -1]], False)
-    MyMatrix.cob_mat([[1, 2, -3], [4, -1, -3]], [[0, 1, -1], [1, 0, -1]], True)
-
-    # Bases for R3
-    mat = MyMatrix.cob_mat([[1, 0, 0], [0, 1, 0], [0, 0, 1]],
-                           [[2, 1, 0], [1, -2, -1], [-1, 2, -5]],
-                           False)
-    # This should be equal
-    np.allclose(
-        a=mat @ np.array([1, 1, 1]),
-        b=cob(
-            np.array([1, 1, 1]),
-            np.array([2, 1, 0]),
-            np.array([1, -2, -1]),
-            np.array([-1, 2, -5])
-        )
-    )
-
-    # ------------------------------ Tests for eigen ----------------------------- #
-
-    # First example
-    MyMatrix.default([[1, 0], [0, 2]]).eigen()
-
-    # Second example
-    MyMatrix.default([[3, 0], [4, 5]]).eigen()
-
-    # Third example
-    MyMatrix.default([[1, -1], [0, 4]]).eigen()
-
-    # Fourth example
-    MyMatrix.default([[-3, 2], [8, 3]]).eigen()
-
-    # Fifth example
-    MyMatrix.default([[5, -4], [4, -3]]).eigen(real=False)
-
-    # Sixth example
-    MyMatrix.default([[-2, 1], [-3, 1]]).eigen(real=False)
-
-    # ---------------------------- Tests for char_poly --------------------------- #
-
-    # First example
-    MyMatrix.default([[3, 0], [4, 5]]).char_poly()
-
-    # Second example
-    MyMatrix.default([[3, 0], [4, 5]]).char_poly()
-
-    # Third example
-    MyMatrix.default([[1, -1], [0, 4]]).char_poly()
-
-    # Fourth example
-    MyMatrix.default([[-3, 2], [8, 3]]).char_poly()
-
-    # Fifth example
-    MyMatrix.default([[5, -4], [4, -3]]).char_poly()
-
-    # Sixth example
-    MyMatrix.default([[-2, 1], [-3, 1]]).char_poly()
-
-    # --------------------------- Tests for diagonalize -------------------------- #
-
-    # First example
-    MyMatrix.default([[6, 2], [-1, 3]]).diagonalize()
-
-    # First example
-    MyMatrix.default([[2, 0], [7, -1]]).diagonalize()
-
-    # Third example
-    MyMatrix.default([[1, 2], [0, -1]]).diagonalize()
+            # Plot the cumulative sum of the singular values
+            plt.figure(num='Singular Values: Cumulative Sum')
+            plt.plot(np.cumsum(s) / np.sum(s))
+            plt.title('Singular Values: Cumulative Sum')
+            plt.xlabel('Rank')
+            plt.show()
