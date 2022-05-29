@@ -611,7 +611,7 @@ class MyMatrix:
         def rapprox_rank_k(k: int,
                            n_oversamples: Optional[int],
                            n_iters: Optional[int],
-                           return_range: Optional[bool]) -> Union[Tuple[np.ndarray, np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
+                           return_onb: Optional[bool]) -> Union[Tuple[np.ndarray, np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
             """
             Computes the rank-k approximation of the matrix X using randomized SVD. The matrix approximation can be
             constructed as the matrix product `u @ np.diag(s) @ vh` where (u, s, vh) are the tuple returned by calling this method.
@@ -624,7 +624,7 @@ class MyMatrix:
                 Additional number of random vectors to sample the column space of X so as to ensure proper conditioning.
             n_iters : Optional[int]
                 Number of power iterations.
-            return_range : Optional[bool]
+            return_onb : Optional[bool]
                 Whether to return the orthonormal basis Q for the approximated column space of X.
 
             Returns
@@ -657,8 +657,8 @@ class MyMatrix:
             U_tilde, S, Vt = la.svd(Y)
             U = Q @ U_tilde
 
-            # Useful for computing the actual error of approximation
-            if return_range:
+            # Q is useful for computing the actual error of approximation
+            if return_onb:
                 return U[:, :k], S[:k], Vt[:k, :], Q
             return U[:, :k], S[:k], Vt[:k, :]
 
