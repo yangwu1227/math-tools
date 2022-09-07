@@ -119,7 +119,11 @@ class TestMyMatrix:
             # List of lists
             ([[1, 2], [1, 2]], 1, np.array([[1, 1], [2, 2]])),
             # Tuple of tuple
-            (((1, 2), [1, 2]), 0, np.array([[1, 2], [1, 2]]))
+            (((1, 2), [1, 2]), 0, np.array([[1, 2], [1, 2]])),
+            # Non-square matrices
+            ([[1, 2, 3], [1, 2, 4]], 1, np.stack([[1, 2, 3], [1, 2, 4]], axis=1)),
+            ([[1, 2], [1, 2], [7, 7]], 1, np.stack(
+                [[1, 2], [1, 2], [7, 7]], axis=1))
         ],
         scope='function'
     )
