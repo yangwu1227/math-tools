@@ -112,7 +112,7 @@ class MyMatrix:
             X (np.ndarray): A matrix.
             row (int): Number of rows.
             col (int): Number of columns.
-            det (np.ndarray): The determinant of X.
+            det (np.ndarray): The determinant of X, if it is square.
     """
     # ---------------------------------------------------------------------------- #
     #                                 Constructors                                 #
@@ -131,7 +131,11 @@ class MyMatrix:
         # Other instance attributes
         self.row = self.X.shape[0]
         self.col = self.X.shape[1]
-        self.det = la.det(self.X)
+        # If square, compute determinant
+        if (self.row == self.col):
+            self.det = la.det(self.X)
+        else:
+            self.det = None
 
     @classmethod
     def default(cls, X: Union[List[List], Tuple[Tuple]], axis: int = 1) -> None:
