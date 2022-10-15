@@ -138,7 +138,7 @@ class MyMatrix:
             self.det = None
 
     @classmethod
-    def default(cls, X: Union[List[List], Tuple[Tuple]], axis: int = 1) -> None:
+    def default(cls, X: Union[List[List], Tuple[Tuple]], axis: int = 1) -> 'MyMatrix':
         """
         Instantiate a class instance from a list of lists or a tuple of tuples, whose
         elements can either be the rows (axis=0) or the columns (axis=1) of the matrix.
@@ -171,7 +171,7 @@ class MyMatrix:
         return cls(X)
 
     @classmethod
-    def from_numpy(cls, X: np.ndarray) -> None:
+    def from_numpy(cls, X: np.ndarray) -> 'MyMatrix':
         """
         Instantiate a class instance from a numpy n-dimensional array. The input
         must be already be in the desired shape since this constructor is a no-op.
@@ -189,7 +189,7 @@ class MyMatrix:
         return cls(X)
 
     @classmethod
-    def zeros(cls, shape: Tuple[int], dtype: np.dtype = np.float64) -> None:
+    def zeros(cls, shape: Tuple[int], dtype: np.dtype = np.float64) -> 'MyMatrix':
         """
         Instantiate a class instance with a zero matrix.
 
@@ -208,7 +208,7 @@ class MyMatrix:
         return cls(np.zeros(shape=shape, dtype=dtype))
 
     @classmethod
-    def eye(cls, N: int, M: int = None, k: int = 0, dtype: np.dtype = np.int8) -> None:
+    def eye(cls, N: int, M: int = None, k: int = 0, dtype: np.dtype = np.int8) -> 'MyMatrix':
         """
         Instantiate a class instance with an identity matrix.
 
@@ -220,7 +220,7 @@ class MyMatrix:
             Number of columns, by default None, which takes the value of N.
         k : int, optional
             Index of the diagonal where 0 (the default) refers to the main diagonal,
-            a positive value refers to an upper diagonal, and a negative value to a 
+            a positive value refers to an upper diagonal, and a negative value to a
             lower diagonal, by default 0.
         dtype : np.dtype, optional
             Data-type of identity matrix, by default np.int8.
@@ -236,6 +236,22 @@ class MyMatrix:
 
     def __repr__(self) -> str:
         return repr(self.X)
+
+    # ---------------------------------------------------------------------------- #
+    #                             Overloading operators                            #
+    # ---------------------------------------------------------------------------- #
+
+    def __add__(self, other: 'MyMatrix') -> 'MyMatrix':
+        X = self.X.copy().__add__(other.X.copy())
+        return MyMatrix.from_numpy(X)
+
+    def __sub__(self, other: 'MyMatrix') -> 'MyMatrix':
+        X = self.X.copy().__sub__(other.X.copy())
+        return MyMatrix.from_numpy(X)
+
+    def __matmul__(self, other: 'MyMatrix') -> 'MyMatrix':
+        X = self.X.copy() @ other.X.copy()
+        return MyMatrix.from_numpy(X)
 
     # ---------------------------------------------------------------------------- #
     #                                Static methods                                #
@@ -335,7 +351,7 @@ class MyMatrix:
 
     def is_pos_def(self) -> bool:
         """
-        Check if matrix `X` is positive definite. A symmetric matrix A is positive definite if 
+        Check if matrix `X` is positive definite. A symmetric matrix A is positive definite if
         (and only if) all of its eigenvalues are positive. The matrix A is positive sem-definite
         if  (and only if) all of its eigenvalues are non-negative (positive or zero).
 
@@ -351,11 +367,35 @@ class MyMatrix:
         except la.LinAlgError:
             return False
 
+    # ------------------------------- Matrix power ------------------------------- #
+
+    def power(self, n) -> 'MyMatrix':
+        """
+        Raise a square matrix to the (integer) power n.
+
+        Parameters
+        ----------
+        n : int
+            The exponent can be any integer or long integer, positive, negative, or zero.
+
+        Returns
+        -------
+        MyMatrix
+            An instance of class MyMatrix.
+
+        Raises
+        ------
+        LinAlgError
+           For matrices that are not square or that (for negative powers) cannot be inverted numerically.
+        """
+        X = la.matrix_power(self.X.copy(), n)
+        return MyMatrix.from_numpy(X)
+
     # ------------------------------- Compute rref ------------------------------- #
 
     def rref(self, pivots: bool = False) -> Union[np.ndarray, Tuple[np.ndarray, tuple]]:
         """
-        Return the reduced row-echelon form of the matrix. Use `pivots` to return 
+        Return the reduced row-echelon form of the matrix. Use `pivots` to return
         the indices of pivot columns.
 
         Parameters
@@ -405,13 +445,13 @@ class MyMatrix:
 
     # ---------------------------------- Inverse --------------------------------- #
 
-    def inv(self) -> np.ndarray:
+    def inv(self) -> 'MyMatrix':
         """
         Given a square matrix `X`, return the matrix `Xinv` satisfying `dot(X, Xinv) = dot(Xinv, X) = eye(X.shape[0])`.
 
         Returns
         -------
-        np.ndarray
+        MyMatrix
             The inverse of X.
 
         Raises
@@ -419,18 +459,18 @@ class MyMatrix:
         la.LinAlgError
             If `X` is not square or inversion fails..
         """
-        return la.inv(self.X)
+        return MyMatrix.from_numpy(la.inv(self.X))
 
     # ----------------------- Moore-Penrose Pseudo-Inverse ----------------------- #
 
-    def pinv(self) -> np.ndarray:
+    def pinv(self) -> 'MyMatrix':
         """
-        Compute the (Moore-Penrose) pseudo-inverse of a matrix. Calculate the generalized inverse of a matrix using its singular-value decomposition (SVD) 
+        Compute the (Moore-Penrose) pseudo-inverse of a matrix. Calculate the generalized inverse of a matrix using its singular-value decomposition (SVD)
         and including all large singular values.
 
         Returns
         -------
-        B : (..., N, M) ndarray
+        B : (..., N, M) MyMatrix
             The pseudo-inverse of `X`.
 
         Raises
@@ -458,11 +498,11 @@ class MyMatrix:
         .. [1] G. Strang, *Linear Algebra and Its Applications*, 2nd Ed., Orlando,
             FL, Academic Press, Inc., 1980, pp. 139-142.
         """
-        return la.pinv(a=self.X, rcond=1e-15, hermitian=False)
+        return MyMatrix.from_numpy(la.pinv(a=self.X, rcond=1e-15, hermitian=False))
 
     # ------------------------------- Gram-schmidt ------------------------------- #
 
-    def gs(self, ret_type: str = 'matrix') -> np.ndarray:
+    def gs(self, ret_type: str = 'matrix') -> Union[List[np.ndarray], 'MyMatrix']:
         """
         Create an orthogonal matrix (a set of orthonormal basis vectors)
         for matrix `X`.
@@ -474,7 +514,7 @@ class MyMatrix:
 
         Returns
         -------
-        np.ndarray
+        np.ndarray or MyMatrix
             A set of orthonormal basis vectors or an orthogonal matrix, depending on the `ret_type` argument.
         """
         if (ret_type == 'vector'):
@@ -486,7 +526,7 @@ class MyMatrix:
                                    for col_index in range(self.col)]
             return orthonormal_vectors
         elif (ret_type == 'matrix'):
-            return la.qr(self.X)[0]
+            return MyMatrix.from_numpy(la.qr(self.X)[0])
 
     # --------------------- Find eigenvalues and eigenvectors -------------------- #
 
@@ -501,8 +541,8 @@ class MyMatrix:
 
         Returns
         -------
-        w (…, M) array 
-            The eigenvalues, each repeated according to its multiplicity. The eigenvalues are not necessarily ordered. The resulting array will be of complex type, unless the imaginary part is zero in which case it will be cast to a real type. 
+        w (…, M) array
+            The eigenvalues, each repeated according to its multiplicity. The eigenvalues are not necessarily ordered. The resulting array will be of complex type, unless the imaginary part is zero in which case it will be cast to a real type.
             When `X` is real the resulting eigenvalues will be real (0 imaginary part) or occur in conjugate pairs.
         vl(…, M, M) array
             The normalized (unit “length”) left eigenvectors, such that the column v[:,i] is the eigenvector corresponding to the eigenvalue w[i].
@@ -570,17 +610,17 @@ class MyMatrix:
 
     def svd(self, full_matrices: bool = True, sigma_only: bool = False) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
-        Factorizes the matrix X into two unitary matrices U and Vh, and a 1-D array s of singular values (real, non-negative) 
+        Factorizes the matrix X into two unitary matrices U and Vh, and a 1-D array s of singular values (real, non-negative)
         such that a == U @ S @ Vh, where S is a suitably shaped matrix of zeros with main diagonal s.
 
         Parameters
         ----------
         full_matrices : bool, optional
-            If True, u and vh have the shapes (..., M, M) and (..., N, N), respectively. 
-            Otherwise, the shapes are (..., M, K) and (..., K, N), respectively, where 
+            If True, u and vh have the shapes (..., M, M) and (..., N, N), respectively.
+            Otherwise, the shapes are (..., M, K) and (..., K, N), respectively, where
             K = min(M, N)., by default True.
         sigma_only : bool, optional
-            Whether to return the singular values only, by default False, which constructs 
+            Whether to return the singular values only, by default False, which constructs
             the sigma matrix in SVD from the singular values.
 
         Returns
@@ -614,107 +654,108 @@ class MyMatrix:
 
         # ------------------------ Rank-k matrix approximation ----------------------- #
 
-        def approx_rank_k(self, k: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-            """
-            Computes the rank-k approximation of the matrix X. The matrix approximation can be
-            constructed as the matrix product `u @ np.diag(s) @ vh` where (u, s, vh) are the 
-            tuple returned by calling this method.
+    def approx_rank_k(self, k: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Computes the rank-k approximation of the matrix X. The matrix approximation can be
+        constructed as the matrix product `u @ np.diag(s) @ vh` where (u, s, vh) are the
+        tuple returned by calling this method.
 
-            Parameters
-            ----------
-            k : int
-                The rank of the approximation.
+        Parameters
+        ----------
+        k : int
+            The rank of the approximation.
 
-            Returns
-            -------
-            Tuple[np.ndarray, np.ndarray, np.ndarray]
-                The singular values, left, right singular vectors needed to construct the rank-k approximation of the matrix X.
-            """
-            # Compute the singular values
-            u, s, vh = self.svd(sigma_only=True)
+        Returns
+        -------
+        Tuple[np.ndarray, np.ndarray, np.ndarray]
+            The singular values, left, right singular vectors needed to construct the rank-k approximation of the matrix X.
+        """
+        # Compute the singular values
+        u, s, vh = self.svd(sigma_only=True)
 
-            # Return the necessary values and vectors to construct the rank-k approximation
-            # The first k left and right singular vectors
-            # And also the first k singular values, sorted in descending order
-            return u[:, :k], s[:k], vh[:k, :]
+        # Return the necessary values and vectors to construct the rank-k approximation
+        # The first k left and right singular vectors
+        # And also the first k singular values, sorted in descending order
+        return u[:, :k], s[:k], vh[:k, :]
 
         # ------------------ Randomized rank-k matrix approximation ------------------ #
 
-        def rapprox_rank_k(k: int,
-                           n_oversamples: Optional[int],
-                           n_iters: Optional[int],
-                           return_onb: Optional[bool]) -> Union[Tuple[np.ndarray, np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
-            """
-            Computes the rank-k approximation of the matrix X using randomized SVD. The matrix approximation can be
-            constructed as the matrix product `u @ np.diag(s) @ vh` where (u, s, vh) are the tuple returned by calling this method.
+    def rapprox_rank_k(self,
+                       k: int,
+                       n_oversamples: Optional[int] = None,
+                       n_iters: Optional[int] = None,
+                       return_onb: Optional[bool] = True) -> Union[Tuple[np.ndarray, np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
+        """
+        Computes the rank-k approximation of the matrix X using randomized SVD. The matrix approximation can be
+        constructed as the matrix product `u @ np.diag(s) @ vh` where (u, s, vh) are the tuple returned by calling this method.
 
-            Parameters
-            ----------
-            k : int
-                The rank of the approximation.
-            n_oversamples : Optional[int]
-                Additional number of random vectors to sample the column space of X so as to ensure proper conditioning.
-            n_iters : Optional[int]
-                Number of power iterations.
-            return_onb : Optional[bool]
-                Whether to return the orthonormal basis Q for the approximated column space of X.
+        Parameters
+        ----------
+        k : int
+            The rank of the approximation.
+        n_oversamples : Optional[int]
+            Additional number of random vectors to sample the column space of X so as to ensure proper conditioning.
+        n_iters : Optional[int]
+            Number of power iterations.
+        return_onb : Optional[bool]
+            Whether to return the orthonormal basis Q for the approximated column space of X.
 
-            Returns
-            -------
-            Union[Tuple[np.ndarray, np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]]
-                The singular values, left, right singular vectors needed to construct the rank-k approximation of the matrix X. 
-                Optionally, the orthonormal basis Q for the approximated column space of X can be returned. 
-            """
-            if n_oversamples is None:
-                # If no oversampling parameter is specified, use the default value
-                n_samples = 2 * k
-            else:
-                n_samples = k + n_oversamples
+        Returns
+        -------
+        Union[Tuple[np.ndarray, np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]]
+            The singular values, left, right singular vectors needed to construct the rank-k approximation of the matrix X.
+            Optionally, the orthonormal basis Q for the approximated column space of X can be returned.
+        """
+        if n_oversamples is None:
+            # If no oversampling parameter is specified, use the default value
+            n_samples = 2 * k
+        else:
+            n_samples = k + n_oversamples
 
-            # Random projection matrix P (sampled from the column space of X)
-            P = np.random.randn(self.col, n_samples)
-            Z = self.X @ P
+        # Random projection matrix P (sampled from the column space of X)
+        P = np.random.randn(self.col, n_samples)
+        Z = self.X @ P
 
-            # If number of power iterations is specified
-            if n_iters:
-                for _ in range(n_iters):
-                    Z = self.X @ (self.X.T @ Z)
-                Q = self.gs(Z)
-            else:
-                # If no power iteration, simply find the orthonormal basis of Z
-                Q = self.gs(Z)
+        # If number of power iterations is specified
+        if isinstance(n_iters, int):
+            for _ in range(n_iters):
+                Z = self.X @ (self.X.T @ Z)
+            Q, R = la.linalg.qr(Z)
+        else:
+            # If no power iteration, simply find the orthonormal basis of Z
+            Q, R = la.linalg.qr(Z)
 
-            # Compute SVD on projected low-rank Y = Q.T @ self.X
-            Y = Q.T @ self.X
-            U_tilde, S, Vt = la.svd(Y)
-            U = Q @ U_tilde
+        # Compute SVD on projected low-rank Y = Q.T @ self.X
+        Y = Q.T @ self.X
+        U_tilde, S, Vt = la.svd(Y)
+        U = Q @ U_tilde
 
-            # Q is useful for computing the actual error of approximation
-            if return_onb:
-                return U[:, :k], S[:k], Vt[:k, :], Q
-            return U[:, :k], S[:k], Vt[:k, :]
+        # Q is useful for computing the actual error of approximation
+        if return_onb:
+            return U[:, :k], S[:k], Vt[:k, :], Q
+        return U[:, :k], S[:k], Vt[:k, :]
 
         # --------------------------- Singular value plots --------------------------- #
 
-        def sv_plot(self):
-            """
-            Plot the log and cumulative sum of singular values of the matrix X. This can be
-            used to visually assess how much information is captured by the first k-rank of 
-            the matrix X, so that a sensible number can be selected for `k` for rank-k matrix 
-            approximation.
-            """
-            s = svdvals(self.X)
+    def sv_plot(self):
+        """
+        Plot the log and cumulative sum of singular values of the matrix X. This can be
+        used to visually assess how much information is captured by the first k-rank of 
+        the matrix X, so that a sensible number can be selected for `k` for rank-k matrix 
+        approximation.
+        """
+        s = svdvals(self.X)
 
-            # Plot of the log of singular values
-            plt.figure(num='Log of Singular Values')
-            plt.semilogy(s)
-            plt.title('Log of Singular Values')
-            plt.xlabel('Rank')
-            plt.show()
+        # Plot of the log of singular values
+        plt.figure(num='Log of Singular Values')
+        plt.semilogy(s)
+        plt.title('Log of Singular Values')
+        plt.xlabel('Rank')
+        plt.show()
 
-            # Plot the cumulative sum of the singular values
-            plt.figure(num='Singular Values: Cumulative Sum')
-            plt.plot(np.cumsum(s) / np.sum(s))
-            plt.title('Singular Values: Cumulative Sum')
-            plt.xlabel('Rank')
-            plt.show()
+        # Plot the cumulative sum of the singular values
+        plt.figure(num='Singular Values: Cumulative Sum')
+        plt.plot(np.cumsum(s) / np.sum(s))
+        plt.title('Singular Values: Cumulative Sum')
+        plt.xlabel('Rank')
+        plt.show()
