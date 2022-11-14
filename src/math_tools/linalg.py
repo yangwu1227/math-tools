@@ -241,17 +241,88 @@ class MyMatrix:
     #                             Overloading operators                            #
     # ---------------------------------------------------------------------------- #
 
+    # ------------------------------ Infix Operators ----------------------------- #
+
     def __add__(self, other: 'MyMatrix') -> 'MyMatrix':
-        X = self.X.copy().__add__(other.X.copy())
-        return MyMatrix.from_numpy(X)
+        try:
+            X = self.X.copy().__add__(other.X.copy())
+            return MyMatrix.from_numpy(X)
+        # Catch AttributesError since not all objects have 'X' attribute
+        # ValueError may need to be caught as well, depending on the type of 'other'
+        # Other exceptions may slip through
+        except (TypeError, AttributeError, ValueError):
+            return NotImplemented
+
+    # If the left operand is not a MyMatrix instance, then invoke the __add__ method with the operands swapped
+    def __radd__(self, other):
+        return self + other
 
     def __sub__(self, other: 'MyMatrix') -> 'MyMatrix':
-        X = self.X.copy().__sub__(other.X.copy())
-        return MyMatrix.from_numpy(X)
+        try:
+            X = self.X.copy().__sub__(other.X.copy())
+            return MyMatrix.from_numpy(X)
+        except (TypeError, AttributeError, ValueError):
+            return NotImplemented
+
+    def __rsub__(self, other):
+        return self - other
 
     def __matmul__(self, other: 'MyMatrix') -> 'MyMatrix':
-        X = self.X.copy() @ other.X.copy()
-        return MyMatrix.from_numpy(X)
+        try:
+            X = self.X.copy() @ other.X.copy()
+            return MyMatrix.from_numpy(X)
+        except (TypeError, AttributeError, ValueError):
+            return NotImplemented
+
+    def __rmatmul__(self, other):
+        return self @ other
+
+    # Left operand is an instance of MyMatrix, and right operand is a scalar
+    def __mul__(self, other: Union[int, float]) -> 'MyMatrix':
+        try:
+            X = self.X.copy() * other
+            return MyMatrix.from_numpy(X)
+        except (TypeError, AttributeError, ValueError):
+            return NotImplemented
+
+    # If the left operand is not a MyMatrix instance, just invoke the __mul__ method with MyMatrix as the left operand
+    def __rmul__(self, other):
+        return self * other
+
+    # --------------------------- Comparison Operators --------------------------- #
+
+    def __eq__(self, other: 'MyMatrix') -> np.ndarray:
+        try:
+            return self.X == other.X  # Delegate to numpy
+        except (TypeError, AttributeError, ValueError):
+            return NotImplemented
+
+    def __ne__(self, other: 'MyMatrix') -> np.ndarray:
+        try:
+            return self.X != other.X
+        except (TypeError, AttributeError, ValueError):
+            return NotImplemented
+
+    def __gt__(self, other: 'MyMatrix') -> np.ndarray:
+        try:
+            return self.X > other.X
+        except (TypeError, AttributeError, ValueError):
+            return NotImplemented
+
+    def __lt__(self, other: 'MyMatrix') -> np.ndarray:
+        try:
+            return self.X < other.X
+        except (TypeError, AttributeError, ValueError):
+            return NotImplemented
+
+    def __ge__(self, other: 'MyMatrix') -> np.ndarray:
+        try:
+            return self.X >= other.X
+        except (TypeError, AttributeError, ValueError):
+            return NotImplemented
+
+    def __le__(self, other: 'MyMatrix') -> np.ndarray:
+        return self.X <= other.X
 
     # ---------------------------------------------------------------------------- #
     #                                Static methods                                #
