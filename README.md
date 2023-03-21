@@ -1,6 +1,6 @@
 # math_tools
 
-A package for math utilitlies
+A package for math utilitlies for Linear Algebra MATH 224. 
 
 ## License
 
