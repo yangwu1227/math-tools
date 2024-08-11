@@ -522,7 +522,7 @@ class MyMatrix:
         X = la.matrix_power(self.X, n)
         return MyMatrix(X)
 
-    def rref(self, pivots: bool = False) -> Union[np.ndarray, Tuple[np.ndarray, tuple]]:
+    def rref(self, pivots: bool = False) -> Union['MyMatrix', Tuple['MyMatrix', tuple]]:
         """
         Return the reduced row-echelon form of the matrix. Use `pivots` to return
         the indices of pivot columns.
@@ -534,7 +534,7 @@ class MyMatrix:
 
         Returns
         -------
-        np.ndarray or tuple
+        'MyMatrix' or tuple
             The reduced row-echelon from or a tuple of pivot column indices.
 
         Examples
@@ -552,10 +552,10 @@ class MyMatrix:
         """
         if pivots:
             mat, piv = Matrix(self.X).rref(pivots=pivots)
-            return np.array(mat, dtype=np.float64), piv
+            return MyMatrix(np.array(mat, dtype=np.float64)), piv
         else:
             mat = Matrix(self.X).rref(pivots=pivots)
-            return np.array(mat, dtype=np.float64)
+            return MyMatrix(np.array(mat, dtype=np.float64))
 
     def col_space(self) -> List[np.ndarray]:
         """
