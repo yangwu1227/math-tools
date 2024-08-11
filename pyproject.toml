@@ -1,22 +1,61 @@
-[tool.poetry]
-name = "math_tools"
-version = "0.1.0"
-description = "A package for math utilitlies"
-authors = ["Yang Wu"]
-license = "MIT"
+[project]
+name = "math-tools"
+description = "A math utility package"
+dependencies = [
+    "numpy>=2.0.1",
+    "sympy>=1.13.1",
+    "scipy>=1.14.0",
+    "matplotlib>=3.9.1",
+]
+requires-python = ">=3.11"
 readme = "README.md"
+dynamic = ["version"]
 
-[tool.poetry.dependencies]
-python = ">=3.8"
-numpy = ">=1.22.3"
-sympy = ">=1.10.1"
-scipy = ">=1.8.1"
-scikit-learn = ">=1.1.1"
-matplotlib = ">=3.5.2"
-
-[tool.poetry.dev-dependencies]
-pytest = ">=7.1.2"
+[project.optional-dependencies]
+ml = [
+    "scikit-learn>=1.5.1",
+    "statsmodels>=0.14.2",
+]
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[tool.pdm]
+distribution = true
+
+[tool.pdm.version]
+source = "file"
+path = "src/math_tools/__init__.py"
+
+[tool.pdm.dev-dependencies]
+test = [
+    "pytest>=8.3.2",
+]
+notebook = [
+    "ipykernel>=6.29.5",
+]
+lint = [
+    "flake8>=7.1.1",
+    "black>=24.8.0",
+]
+doc = [
+    "mkdocstrings[python]>=0.25.2",
+    "mkdocs-material>=9.5.31",
+    "mkdocs>=1.6.0",
+]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+strict_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_unreachable = true
+
+[tool.pytest.ini_options]
+python_files = "test_*.py"
+python_functions = "test_*"
+testpaths = [
+    "tests",
+]
