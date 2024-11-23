@@ -28,16 +28,16 @@ distribution = true
 source = "file"
 path = "src/math_tools/__init__.py"
 
-[tool.pdm.dev-dependencies]
+[dependency-groups]
 test = [
     "pytest>=8.3.2",
 ]
 notebook = [
     "ipykernel>=6.29.5",
 ]
-lint = [
-    "flake8>=7.1.1",
-    "black>=24.8.0",
+lint-fmt = [
+   "ruff>=0.8.0",
+    "mypy>=1.13.0",
 ]
 doc = [
     "mkdocstrings[python]>=0.25.2",
