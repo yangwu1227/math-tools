@@ -1,7 +1,7 @@
 import numpy as np
 import numpy.linalg as la
-from scipy.linalg import eig, svdvals  # type: ignore
-from sympy import Matrix  # type: ignore
+from scipy.linalg import eig, svdvals
+from sympy import Matrix
 import matplotlib.pyplot as plt
 from typing import Union, List, Tuple, Optional, Self, Any
 
@@ -522,7 +522,7 @@ class MyMatrix:
         X = la.matrix_power(self.X, n)
         return MyMatrix(X)
 
-    def rref(self, pivots: bool = False) -> Union['MyMatrix', Tuple['MyMatrix', tuple]]:
+    def rref(self, pivots: bool = False) -> Union["MyMatrix", Tuple["MyMatrix", tuple]]:
         """
         Return the reduced row-echelon form of the matrix. Use `pivots` to return
         the indices of pivot columns.
