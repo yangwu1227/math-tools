@@ -1,16 +1,37 @@
+from typing import Any, List, Optional, Self, Tuple, Union, final
+
+import matplotlib.pyplot as plt
 import numpy as np
 import numpy.linalg as la
 from scipy.linalg import eig, svdvals
 from sympy import Matrix
-import matplotlib.pyplot as plt
-from typing import Union, List, Tuple, Optional, Self, Any
+
+
+def _as_1d(x: Union[np.ndarray, List, Tuple]) -> np.ndarray:
+    """
+    Internal helper to convert `x` to 1D numpy array of floats.
+
+    Parameters
+    ----------
+    x : Union[np.ndarray, List, Tuple]
+        Input vector.
+
+    Returns
+    -------
+    np.ndarray
+        1D numpy array representation of the input vector.
+    """
+    array = np.asarray(x, dtype=float)
+    if array.ndim != 1:
+        raise ValueError(f"Expected a 1-D vector, got shape {array.shape}")
+    return array
 
 
 def cob(
     vector: Union[np.ndarray, List, Tuple], *args: Union[np.ndarray, List, Tuple]
 ) -> np.ndarray:
     """
-    Express a vector in a new basis spanned by a pairwise orthogonal (not orthonomal) set basis vectors.
+    Express a vector in a new basis spanned by a pairwise orthogonal (not orthonormal) set of basis vectors.
 
     Parameters
     ----------
@@ -30,27 +51,36 @@ def cob(
     >>> # Express [10, -5] in the basis spanned by [3, 4] and [4, -3]
     >>> la.cob(vector=np.array([10, -5]), np.array([3, 4]), np.array([4, -3]))
     """
-    # Cast to np.ndarray
-    vector = np.array(vector)
+    v = _as_1d(vector)
+    bases = [_as_1d(b) for b in args]
+    n = v.shape[0]
+    if any(b.shape[0] != n for b in bases):
+        raise ValueError("All vectors must have the same dimension")
+
+    # Check for pairwise orthogonality
+    for i in range(len(bases)):
+        if la.norm(bases[i]) == 0:
+            raise ValueError("Basis vectors must have non-zero norms")
+        for j in range(i + 1, len(bases)):
+            if abs(np.dot(bases[i], bases[j])) > 1e-10:
+                raise ValueError("Basis vectors must be pairwise orthogonal")
+
     # Projection
-    scalar_projections = [
-        np.dot(vector, np.array(basis)) / (la.norm(np.array(basis))) ** 2
-        for basis in args
-    ]
+    scalar_projections = [np.dot(v, b) / (la.norm(b) ** 2) for b in bases]
     return np.array(scalar_projections)
 
 
 def proj(
-    v1: Union[np.ndarray, List, Tuple],
-    v2: Union[np.ndarray, List, Tuple],
+    v_1: Union[np.ndarray, List, Tuple],
+    v_2: Union[np.ndarray, List, Tuple],
     proj_type: str = "vector",
-) -> Union[np.ndarray, np.float64]:
+) -> Union[np.ndarray, float]:
     """
     Obtain the scalar or vector projection of vector `v1` onto vector `v2`.
 
     Parameters
     ----------
-    v1 : Union[np.ndarray, List, Tuple]
+    v_1 : Union[np.ndarray, List, Tuple]
         An n-dimensional vector.
     v2 : Union[np.ndarray, List, Tuple]
         An n-dimensional vector.
@@ -59,27 +89,31 @@ def proj(
 
     Returns
     -------
-    np.ndarray
+    np.ndarray or float
         The scalar or vector projection of vector `v1` onto vector `v2`.
 
     Examples
     --------
     >>> import linalg as la
     >>> la.proj(np.array([2, 4, 0]), np.array([4, 2, 4]), 'scalar')
-    np.float64(2.6666666666666665)
+    2.6666666666666665
     >>> la.proj(np.array([2, 1]), np.array([3, -4]), 'vector')
     array([ 0.24, -0.32])
     """
-    v1 = np.array(v1)
-    v2 = np.array(v2)
+    a = _as_1d(v_1)
+    b = _as_1d(v_2)
+    if a.shape != b.shape:
+        raise ValueError("Input vectors must have the same dimension")
+    bnorm = la.norm(b)
+    if bnorm == 0:
+        raise ValueError("Cannot project onto the zero-norm vector")
 
     if proj_type == "scalar":
-        out = np.dot(v1, v2) / (la.norm(v2))
+        out = float(np.dot(a, b) / bnorm)
     elif proj_type == "vector":
-        out = (np.dot(v1, v2) / (la.norm(v2)) ** 2) * v2
+        out = (np.dot(a, b) / (bnorm**2)) * b
     else:
-        raise ValueError("'proj_type' must either be 'vector' or 'scalar")
-
+        raise ValueError("'proj_type' must either be 'vector' or 'scalar'")
     return out
 
 
@@ -105,28 +139,38 @@ def lin_ind(*args: Union[np.ndarray, List, Tuple]) -> Union[None, np.ndarray]:
     >>> la.lin_ind([1, 0, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1], [0, 1, 0, 0])
     The matrix with input vectors as columns has full column rank, and so the input vectors are linearly independent
     >>> # Linear dependent
-    >>> lin_ind([1, 0, 0, 0], [1, 9, 3, 0], [0, 0, 4, 1], [0, 1, 0, 0], [2, 3, 4, 9])
-    array([[2, 3, 4, 9]])
+    >>> la.lin_ind([1, 0, 0, 0], [1, 9, 3, 0], [0, 0, 4, 1], [0, 1, 0, 0], [2, 3, 4, 9])
+    array([[2., 3., 4., 9.]])
     """
+    if len(args) == 0:
+        raise ValueError("Provide at least one vector")
+
     # Convert input tuple of vectors into an ndarray for indexing later
-    input_vectors = np.array(args)
+    vecs = [_as_1d(v) for v in args]
+    dim = vecs[0].shape[0]
+    if any(v.shape[0] != dim for v in vecs):
+        raise ValueError("All vectors must have the same dimension")
 
     # Need to transpose the matrix so each vector in 'args' is a column vector
+    A = np.column_stack(vecs)  # Shape (dim, nvec)
     # Pivot column indices are stored as the second element of the tuple returned by rref()
-    pivot_indices = Matrix(input_vectors).T.rref()[1]
+    rref_mat, pivot_indices = Matrix(A).rref()
 
     # If number of elements in 'pivot_indices' equals the number of input vectors, then the matrix has full rank
-    if len(pivot_indices) == len(args):
+    if len(pivot_indices) == A.shape[1]:
         print(
             "The matrix with input vectors as columns has full column rank, and so the input vectors are linearly independent"
         )
         return None
     else:
-        # Return non-pivot columns
-        return np.delete(input_vectors, pivot_indices, axis=0)
+        # Return non-pivot columns in the original order, one per row (to match original behavior)
+        redundant_idxs = [i for i in range(A.shape[1]) if i not in pivot_indices]
+        redundant = np.array([vecs[i] for i in redundant_idxs], dtype=float)
+        return redundant
 
 
-class MyMatrix:
+@final
+class MatrixOps(object):
     """
     A matrix utility class that provides a set of methods for matrix operations.
 
@@ -140,11 +184,11 @@ class MyMatrix:
 
     def __init__(
         self,
-        X: Union[np.ndarray, List[List[Any]], Tuple[Tuple[Any]]],
+        X: Union[np.ndarray, List[List[Any]], Tuple[Tuple[Any, ...], ...]],
         axis: Optional[int] = None,
     ) -> None:
         """
-        Initialize the MyMatrix instance.
+        Initialize the MatrixOps instance.
 
         Parameters
         ----------
@@ -157,19 +201,25 @@ class MyMatrix:
         -------
         None
         """
+        self.X: np.ndarray
+        self.row: int
+        self.col: int
+        self.det: Optional[float]
+
         if isinstance(X, np.ndarray):
             self._init_from_ndarray(X)
         elif isinstance(X, (list, tuple)):
             if axis is None:
                 raise ValueError(
-                    "The argument 'axis' must be provided when input is a sequence."
+                    "The argument 'axis' must be provided when input is a sequence"
                 )
             self._init_from_seq(X, axis)
         else:
             raise TypeError(
-                "Input must be a numpy.ndarray or a sequence (list or tuple)."
+                "Input must be a numpy.ndarray or a sequence (list or tuple)"
             )
 
+        self.X = np.asarray(self.X, dtype=float, order="C")
         self.row = self.X.shape[0]
         self.col = self.X.shape[1]
         self.det = la.det(self.X) if self.is_sq() else None
@@ -190,7 +240,7 @@ class MyMatrix:
         self.X = X
 
     def _init_from_seq(
-        self, X: Union[List[List[Any]], Tuple[Tuple[Any]]], axis: int
+        self, X: Union[List[List[Any]], Tuple[Tuple[Any, ...], ...]], axis: int
     ) -> None:
         """
         Initialize from a sequence of lists or tuples.
@@ -215,7 +265,7 @@ class MyMatrix:
 
     @classmethod
     def zeros(
-        cls, shape: Tuple[int], dtype: Optional[np.dtype] = np.dtype(np.float64)
+        cls, shape: Tuple[int, int], dtype: Optional[np.dtype] = np.dtype(np.float64)
     ) -> Self:
         """
         Instantiate a class instance with a zero matrix.
@@ -229,13 +279,13 @@ class MyMatrix:
 
         Returns
         -------
-        MyMatrix
-            An instance of of class MyMatrix.
+        MatrixOps
+            An instance of of class MatrixOps.
 
         Examples
         --------
         >>> import linalg as la
-        >>> la.MyMatrix.zeros((2, 3))
+        >>> la.MatrixOps.zeros((2, 3))
         array([[0., 0., 0.],
                [0., 0., 0.]])
         """
@@ -267,17 +317,17 @@ class MyMatrix:
 
         Returns
         -------
-        MyMatrix
-            An instance of of class MyMatrix.
+        MatrixOps
+            An instance of of class MatrixOps.
 
         Examples
         --------
         >>> import linalg as la
-        >>> la.MyMatrix.eye(3)
+        >>> la.MatrixOps.eye(3)
         array([[1, 0, 0],
                [0, 1, 0],
                [0, 0, 1]], dtype=int8)
-        >>> la.MyMatrix.eye(3, 4, 1)
+        >>> la.MatrixOps.eye(3, 4, 1)
         array([[0, 1, 0, 0],
                [0, 0, 1, 0],
                [0, 0, 0, 1]], dtype=int8)
@@ -292,71 +342,79 @@ class MyMatrix:
 
     # ------------------------------ Infix Operators ----------------------------- #
 
-    def __add__(self, other: Any) -> "MyMatrix":
-        if isinstance(other, MyMatrix):
+    def __add__(self, other: Any) -> Self:
+        if isinstance(other, MatrixOps):
             X = self.X + other.X
-            return MyMatrix(X)
+            return MatrixOps(X)
         return NotImplemented
 
-    def __radd__(self, other):
-        return self + other
+    def __radd__(self, other: Any) -> Self:
+        if isinstance(other, MatrixOps):
+            return other.__add__(self)
+        return NotImplemented
 
-    def __sub__(self, other: Any) -> "MyMatrix":
-        if isinstance(other, MyMatrix):
+    def __sub__(self, other: Any) -> Self:
+        if isinstance(other, MatrixOps):
             X = self.X - other.X
-            return MyMatrix(X)
+            return MatrixOps(X)
         return NotImplemented
 
-    def __rsub__(self, other):
-        return -1 * (self - other)
+    def __rsub__(self, other: Any) -> Self:
+        if isinstance(other, MatrixOps):
+            X = other.X - self.X
+            return MatrixOps(X)
+        return NotImplemented
 
-    def __matmul__(self, other: Any) -> "MyMatrix":
-        if isinstance(other, MyMatrix):
+    def __matmul__(self, other: Any) -> Self:
+        if isinstance(other, MatrixOps):
             X = self.X @ other.X
-            return MyMatrix(X)
+            return MatrixOps(X)
         return NotImplemented
 
-    def __rmatmul__(self, other):
-        return self @ other
+    def __rmatmul__(self, other: Any) -> Self:
+        if isinstance(other, MatrixOps):
+            X = other.X @ self.X
+            return MatrixOps(X)
+        return NotImplemented
 
-    def __mul__(self, other: Any) -> "MyMatrix":
-        if isinstance(other, (int, float)):
+    def __mul__(self, other: Any) -> Self:
+        if isinstance(other, (int, float, np.floating)):
             X = self.X * other
-            return MyMatrix(X)
+            return MatrixOps(X)
         return NotImplemented
 
-    def __rmul__(self, other):
+    def __rmul__(self, other: Any) -> Self:
         return self * other
 
     # --------------------------- Comparison Operators --------------------------- #
 
     def __eq__(self, other: Any) -> bool:
-        if isinstance(other, MyMatrix):
+        if isinstance(other, MatrixOps):
             return np.array_equal(self.X, other.X)
         return NotImplemented
 
     def __ne__(self, other: Any) -> bool:
-        if isinstance(other, MyMatrix):
+        if isinstance(other, MatrixOps):
             return not self.__eq__(other)
         return NotImplemented
 
     def __gt__(self, other: Any) -> np.ndarray:
-        if isinstance(other, MyMatrix):
+        if isinstance(other, MatrixOps):
             return self.X > other.X
         return NotImplemented
 
     def __lt__(self, other: Any) -> np.ndarray:
-        if isinstance(other, MyMatrix):
+        if isinstance(other, MatrixOps):
             return self.X < other.X
         return NotImplemented
 
     def __ge__(self, other: Any) -> np.ndarray:
-        if isinstance(other, MyMatrix):
+        if isinstance(other, MatrixOps):
             return self.X >= other.X
         return NotImplemented
 
     def __le__(self, other: Any) -> np.ndarray:
-        if isinstance(other, MyMatrix):
+        if isinstance(other, MatrixOps):
             return self.X <= other.X
         return NotImplemented
 
@@ -386,15 +444,15 @@ class MyMatrix:
         --------
         >>> import linalg as la
         >>> # Change of basis from [[1, 2, -3], [4, -1, -3]] to [[0, 1, -1], [1, 0, -1]]
-        >>> la.MyMatrix.cob_mat([[1, 2, -3], [4, -1, -3]], [[0, 1, -1], [1, 0, -1]], False)
+        >>> la.MatrixOps.cob_mat([[1, 2, -3], [4, -1, -3]], [[0, 1, -1], [1, 0, -1]], False)
         array([[ 2., -1.],
                [ 1.,  4.]])
         """
         # Matrix with new basis vectors as columns
-        mat_new_basis = np.stack(new_basis, axis=1)
+        mat_new_basis = np.column_stack([_as_1d(b) for b in new_basis])
 
         # Convert each element (vector) in 'original_basis' to np.ndarray
-        original_basis_arrays = [np.array(vec) for vec in original_basis]
+        original_basis_arrays = [_as_1d(vec) for vec in original_basis]
 
         # Find coordinate vectors of original basis vectors with respect to new basis vectors
         list_of_coord_vectors = [
@@ -402,11 +460,15 @@ class MyMatrix:
         ]
 
         # Concatenate coordinate vectors (np.ndarray) to form change of basis vectors
+        cob = np.column_stack(list_of_coord_vectors)
         if inv:
-            cob = np.stack(list_of_coord_vectors, axis=1)
+            if cob.shape[0] != cob.shape[1]:
+                raise la.LinAlgError(
+                    "Cannot invert a non-square change-of-basis matrix"
+                )
             return la.inv(cob)
         else:
-            return np.stack(list_of_coord_vectors, axis=1)
+            return cob
 
     @staticmethod
     def is_coord_vec(
@@ -437,15 +499,23 @@ class MyMatrix:
         >>> original_vec = np.array([5, 11])
         >>> coord_vec = [1, 2]
         >>> basis_vecs = [np.array([1, 3]), np.array([2, 4])]
-        >>> la.MyMatrix.is_coord_vec(original_vec, coord_vec, *basis_vecs)
+        >>> la.MatrixOps.is_coord_vec(original_vec, coord_vec, *basis_vecs)
         True
         """
-        sum_vec = np.zeros_like(original_vec)
-        # Sum the basis vectors scaled by their corresponding coefficients in the coordinate vector
-        for basis_vec, coef in zip(args, coord_vec):
-            sum_vec = np.add(sum_vec, coef * np.array(basis_vec))
+        original = _as_1d(original_vec)
+        coeffs = _as_1d(coord_vec)
+        bases = [_as_1d(b) for b in args]
+        if len(bases) != len(coeffs):
+            return False
+        if any(b.shape != original.shape for b in bases):
+            return False
 
-        return np.allclose(sum_vec, np.array(original_vec))
+        sum_vec = np.zeros_like(original, dtype=float)
+        # Sum the basis vectors scaled by their corresponding coefficients in the coordinate vector
+        for basis_vec, coef in zip(bases, coeffs):
+            sum_vec = np.add(sum_vec, float(coef) * basis_vec)
+
+        return np.allclose(sum_vec, original)
 
     def is_sq(self) -> bool:
         """
@@ -459,9 +529,9 @@ class MyMatrix:
         Examples
         --------
         >>> import linalg as la
-        >>> la.MyMatrix(np.array([[1, 2], [3, 4]]), axis=0).is_sq()
+        >>> la.MatrixOps(np.array([[1, 2], [3, 4]]), axis=0).is_sq()
         True
-        >>> la.MyMatrix(np.array([[1, 2], [3, 4], [5, 6]]), axis=0).is_sq()
+        >>> la.MatrixOps(np.array([[1, 2], [3, 4], [5, 6]]), axis=0).is_sq()
         False
         """
         return self.row == self.col
@@ -480,20 +550,21 @@ class MyMatrix:
         Examples
         --------
         >>> import linalg as la
-        >>> m = la.MyMatrix.eye(3)
+        >>> m = la.MatrixOps.eye(3)
         >>> m.is_pos_def()
         True
         """
         try:
             # Will raise an exception if matrix is not positive definite
-            np.linalg.cholesky(self.X)
+            A = 0.5 * (self.X + self.X.T)  # ensure symmetry numerically
+            np.linalg.cholesky(A)
             return True
         except la.LinAlgError:
             return False
 
     # ------------------------------- Matrix power ------------------------------- #
 
-    def power(self, n) -> "MyMatrix":
+    def power(self, n) -> "MatrixOps":
         """
         Raise a square matrix to the (integer) power n.
 
@@ -504,8 +575,8 @@ class MyMatrix:
 
         Returns
         -------
-        MyMatrix
-            An instance of class MyMatrix.
+        MatrixOps
+            An instance of class MatrixOps.
 
         Raises
         ------
@@ -515,14 +586,14 @@ class MyMatrix:
         Examples
         --------
         >>> import linalg as la
-        >>> la.MyMatrix(np.array([[1, 2], [12, 17]]), axis=0).power(2)
+        >>> la.MatrixOps(np.array([[1, 2], [12, 17]]), axis=0).power(2)
         array([[ 25,  36],
                [216, 313]])
         """
         X = la.matrix_power(self.X, n)
-        return MyMatrix(X)
+        return MatrixOps(X)
 
-    def rref(self, pivots: bool = False) -> Union["MyMatrix", Tuple["MyMatrix", tuple]]:
+    def rref(self, pivots: bool = False) -> Union[Self, Tuple[Self, Tuple[int, ...]]]:
         """
         Return the reduced row-echelon form of the matrix. Use `pivots` to return
         the indices of pivot columns.
@@ -534,13 +605,13 @@ class MyMatrix:
 
         Returns
         -------
-        'MyMatrix' or tuple
+        'MatrixOps' or tuple
             The reduced row-echelon from or a tuple of pivot column indices.
 
         Examples
         --------
         >>> import linalg as la
-        >>> m = la.MyMatrix([[1, 2, 3], [4, 5, 6], [7, 8, 9]], axis=1)
+        >>> m = la.MatrixOps([[1, 2, 3], [4, 5, 6], [7, 8, 9]], axis=1)
         >>> m.rref()
         array([[1., 0., -1.],
                [0., 1.,  2.],
@@ -550,12 +621,11 @@ class MyMatrix:
                 [0., 1.,  2.],
                 [0., 0.,  0.]]), (0, 1))
         """
+        mat, piv = Matrix(self.X).rref()
         if pivots:
-            mat, piv = Matrix(self.X).rref(pivots=pivots)
-            return MyMatrix(np.array(mat, dtype=np.float64)), piv
+            return MatrixOps(np.array(mat, dtype=np.float64)), tuple(piv)
         else:
-            mat = Matrix(self.X).rref(pivots=pivots)
-            return MyMatrix(np.array(mat, dtype=np.float64))
+            return MatrixOps(np.array(mat, dtype=np.float64))
 
     def col_space(self) -> List[np.ndarray]:
         """
@@ -569,7 +639,7 @@ class MyMatrix:
         Examples
         --------
         >>> import linalg as la
-        >>> m = la.MyMatrix([[1, 2], [3, 4], [5, 6]], axis=0)
+        >>> m = la.MatrixOps([[1, 2], [3, 4], [5, 6]], axis=0)
         >>> [array([[1.],
                     [3.],
                     [5.]]),
@@ -591,20 +661,20 @@ class MyMatrix:
         Examples
         --------
         >>> import linalg as la
-        >>> m = la.MyMatrix([[1, 2], [3, 6]], axis=0)
+        >>> m = la.MatrixOps([[1, 2], [3, 6]], axis=0)
         >>> m.null_space()
         >>> [array([[-2.],
                     [ 1.]])]
         """
         return [np.array(col, dtype=np.float64) for col in Matrix(self.X).nullspace()]
 
-    def inv(self) -> "MyMatrix":
+    def inv(self) -> Self:
         """
         Given a square matrix `X`, return the matrix `Xinv` satisfying `dot(X, Xinv) = dot(Xinv, X) = eye(X.shape[0])`.
 
         Returns
         -------
-        MyMatrix
+        MatrixOps
             The inverse of X.
 
         Raises
@@ -615,21 +685,21 @@ class MyMatrix:
         Examples
         --------
         >>> import linalg as la
-        >>> m = la.MyMatrix([[1, 2], [3, 4]], axis=0)
+        >>> m = la.MatrixOps([[1, 2], [3, 4]], axis=0)
         >>> m.inv()
-        >>> [array([-2.,  1.])]
-                   [ 1.5, -0.5]])
+        array([[-2. ,  1. ],
+               [ 1.5, -0.5]])
         """
-        return MyMatrix(la.inv(self.X))
+        return MatrixOps(la.inv(self.X))
 
-    def pinv(self) -> "MyMatrix":
+    def pinv(self) -> Self:
         """
         Compute the (Moore-Penrose) pseudo-inverse of a matrix. Calculate the generalized inverse of a matrix using its singular-value decomposition (SVD)
         and including all large singular values.
 
         Returns
         -------
-        B : (..., N, M) MyMatrix
+        B : (..., N, M) MatrixOps
             The pseudo-inverse of `X`.
 
         Raises
@@ -640,15 +710,15 @@ class MyMatrix:
         Examples
         --------
         >>> import linalg as la
-        >>> m = la.MyMatrix([[1, 2], [3, 4], [5, 6]], axis=1)
+        >>> m = la.MatrixOps([[1, 2], [3, 4], [5, 6]], axis=1)
         >>> m.pinv()
         array([[-1.33333333,  1.08333333],
-            [-0.33333333,  0.33333333],
-            [ 0.66666667, -0.41666667]])
+               [-0.33333333,  0.33333333],
+               [ 0.66666667, -0.41666667]])
         """
-        return MyMatrix(la.pinv(a=self.X, rcond=1e-15, hermitian=False))
+        return MatrixOps(la.pinv(a=self.X, rcond=1e-15, hermitian=False))
 
-    def gs(self, ret_type: str = "matrix") -> Union[List[np.ndarray], "MyMatrix"]:
+    def gs(self, ret_type: str = "matrix") -> Union[List[np.ndarray], Self]:
         """
         Create an orthogonal matrix (a set of orthonormal basis vectors)
         for matrix `X`.
@@ -660,7 +730,7 @@ class MyMatrix:
 
         Returns
         -------
-        np.ndarray or MyMatrix
+        np.ndarray or MatrixOps
             A set of orthonormal basis vectors or an orthogonal matrix, depending on the `ret_type` argument.
 
         Raises
@@ -671,7 +741,7 @@ class MyMatrix:
         Examples
         --------
         >>> import linalg as la
-        >>> m = la.MyMatrix([[1, 0], [0, 1], [1, 1]], axis=0)
+        >>> m = la.MatrixOps([[1, 0], [0, 1], [1, 1]], axis=0)
         >>> m.gs(ret_type="vector")
         [array([-0.70710678, -0.        , -0.70710678]), array([ 0.40824829, -0.81649658, -0.40824829])]
         >>> m.gs(ret_type="matrix")
@@ -679,19 +749,20 @@ class MyMatrix:
                [-0.        , -0.81649658],
                [-0.70710678, -0.40824829]])
         """
-        if not self.is_sq():
-            raise la.LinAlgError("The matrix X is not square")
+        # Use reduced QR so it works for rectangular matrices too
+        Q, _ = la.qr(self.X, mode="reduced")
 
         if ret_type == "vector":
             # Create orthogonal matrix
-            orthogonal_mat = la.qr(self.X)[0]
+            orthogonal_mat = Q
             # Return a list of orthonormal basis vectors
             orthonormal_vectors = [
-                orthogonal_mat[:, col_index] for col_index in range(self.col)
+                orthogonal_mat[:, col_index]
+                for col_index in range(orthogonal_mat.shape[1])
             ]
             return orthonormal_vectors
         elif ret_type == "matrix":
-            return MyMatrix(la.qr(self.X)[0])
+            return MatrixOps(Q)
         else:
             raise ValueError(
                 "The argument 'ret_type' must either be 'matrix' or 'vector'"
@@ -724,7 +795,7 @@ class MyMatrix:
         Examples
         --------
         >>> import linalg as la
-        >>> m = la.MyMatrix([[1, 2], [2, 1]], axis=0)
+        >>> m = la.MatrixOps([[1, 2], [2, 1]], axis=0)
         >>> m.eigen()
         (array([ 3., -1.]),
          array([[ 0.70710678, -0.70710678],
@@ -761,7 +832,7 @@ class MyMatrix:
         Examples
         --------
         >>> import linalg as la
-        >>> m = la.MyMatrix([[1, 2], [3, 4]], axis=0)
+        >>> m = la.MatrixOps([[1, 2], [3, 4]], axis=0)
         >>> m.char_poly()
         lambda**2 - 5*lambda - 2
         """
@@ -798,7 +869,7 @@ class MyMatrix:
         Examples
         --------
         >>> import linalg as la
-        >>> m = la.MyMatrix([[1, 2], [2, 1]], axis=1)
+        >>> m = la.MatrixOps([[1, 2], [2, 1]], axis=1)
         >>> m.diagonalize()
         (array([[-1.,  1.],
                 [ 1.,  1.]]),
@@ -835,17 +906,19 @@ class MyMatrix:
         Returns
         -------
         Tuple[np.ndarray, np.ndarray, np.ndarray]
-            A tuple of three matrices: U (m x m), S (m x n), V^T (n x n).
+            A tuple of three matrices: U (m x m), S (m x n), V^T (n x n) if full_matrices=True.
+            If full_matrices=False and sigma_only=False, S is K x K.
+            If sigma_only=True, the middle return is the 1-D array of singular values.
 
         Examples
         --------
         >>> import linalg as la
-        >>> m = la.MyMatrix([[1, 0], [71, 1], [12, 1]], axis=1)
+        >>> m = la.MatrixOps([[1, 0], [71, 1], [12, 1]], axis=1)
         >>> m.svd()
         (array([[-0.99987192, -0.01600465],
                 [-0.01600465,  0.99987192]]),
-         array([[72.02311126+0.j,  0.        +0.j,  0.        +0.j],
-                [ 0.        +0.j,  0.81941679+0.j,  0.        +0.j]]),
+         array([[72.02311126,  0.        ,  0.        ],
+                [ 0.        ,  0.81941679,  0.        ]]),
          array([[-0.01388265, -0.98589063, -0.16681406],
                 [-0.01953176, -0.16653093,  0.98584277],
                 [-0.99971285,  0.01694429, -0.01694429]]))
@@ -853,7 +926,7 @@ class MyMatrix:
         if not isinstance(full_matrices, bool):
             raise ValueError("The argument 'full_matrices' must be a boolean")
 
-        # The vector s contains the singular values of self.X arranged in descending order of size
+        # The vector s contains the singular values of self.Xarranged in descending order of size
         u, s, vh = la.svd(
             a=self.X, full_matrices=full_matrices, compute_uv=True, hermitian=False
         )
@@ -861,26 +934,18 @@ class MyMatrix:
         if sigma_only:
             return u, s, vh
 
-        # Number of singular values
-        m_or_n = len(s)
+        m, n = self.row, self.col
+        k = min(m, n)
 
-        # Create a diagonal matrix with the singular values on the diagonal
-        if m_or_n == self.row:
-            # For m < n, this is a higher dimensional (domain R^n) vector space mapping to lower dimensional (co-domain R^m) vector space
-            # The zero matrix (m, n - m) is concatenated to diag(s) along last axis '-1' (column-bind)
-            s_matrix = np.r_[
-                "-1",
-                np.diag(s),
-                np.zeros((self.row, self.col - self.row), dtype=complex),
-            ]
-            return u, s_matrix, vh
+        if full_matrices:
+            # Build S of shape (m, n)
+            S = np.zeros((m, n), dtype=float)
+            np.fill_diagonal(S, s)
         else:
-            # For m > n, this is a lower dimensional (domain R^n) vector space mapping to higher dimensional (co-domain R^m) vector space
-            # The zero matrix (m - n, n) is stacked below diag(s) along the first axis '0' (row-bind)
-            s_matrix = np.r_[
-                np.diag(s), np.zeros((self.row - self.col, self.col), dtype=complex)
-            ]
-            return u, s_matrix, vh
+            # Build compact diag of shape (k, k) to match reduced (m, k) @ (k, k) @ (k, n)
+            S = np.diag(s)
+
+        return u, S, vh
 
     # ------------------------ Rank-k matrix approximation ----------------------- #
 
@@ -903,19 +968,20 @@ class MyMatrix:
         Examples
         --------
         >>> import linalg as la
-        >>> m = la.MyMatrix([[1, 0, 12], [7, 12, 17], [9, 77, 27], [8, 7, 16]], axis=0)
+        >>> m = la.MatrixOps([[1, 0, 12], [7, 12, 17], [9, 77, 27], [8, 7, 16]], axis=0)
         >>> m.approx_rank_k(1)
-        (array([[-0.05593827, -0.49093673],
-                [-0.2166436 , -0.55228019],
-                [-0.96140112,  0.25677546],
-                [-0.16013852, -0.62292382]]),
-         array([85.19359971, 21.49336595]),
-         array([[-0.13505899, -0.91261056, -0.38587696],
-                [-0.32704554,  0.40867874, -0.85206978]]))
+        (array([[-0.05593827],
+                [-0.2166436 ],
+                [-0.96140112],
+                [-0.16013852]]),
+         array([85.19359971]),
+         array([[-0.13505899, -0.91261056, -0.38587696]]))
         """
-        # Compute the singular values
-        u, s, vh = self.svd(sigma_only=True)
+        if not (1 <= k <= min(self.row, self.col)):
+            raise ValueError("k must be between 1 and min(m, n)")
 
+        # Compute the singular values (economy)
+        u, s, vh = la.svd(self.X, full_matrices=False)
         # Return the necessary values and vectors to construct the rank-k approximation
         # The first k left and right singular vectors
         # And also the first k singular values, sorted in descending order
@@ -957,7 +1023,7 @@ class MyMatrix:
         Examples
         --------
         >>> import linalg as la
-        >>> m = la.MyMatrix([[1, 0, 12], [7, 12, 17], [9, 77, 27], [8, 7, 16]], axis=0)
+        >>> m = la.MatrixOps([[1, 0, 12], [7, 12, 17], [9, 77, 27], [8, 7, 16]], axis=0)
         >>> m.rapprox_rank_k(2)
         (array([[-0.05593827,  0.49093673],
                 [-0.2166436 ,  0.55228019],
@@ -971,28 +1037,34 @@ class MyMatrix:
                 [ 0.67509565, -0.71187709, -0.18086095,  0.06903766],
                 [-0.3233407 , -0.40684188,  0.61914555,  0.58871833]]))
         """
+        if not (1 <= k <= min(self.row, self.col)):
+            raise ValueError("k must be between 1 and min(m, n)")
+
         if n_oversamples is None:
             # If no oversampling parameter is specified, use the default value
             n_samples = 2 * k
         else:
-            n_samples = k + n_oversamples
+            n_samples = k + int(n_oversamples)
+        n_samples = min(n_samples, self.col)
 
         # Random projection matrix P (sampled from the column space of X)
         P = np.random.randn(self.col, n_samples)
         Z = self.X @ P
 
         # If number of power iterations is specified
-        if isinstance(n_iters, int):
+        if isinstance(n_iters, int) and n_iters > 0:
             for _ in range(n_iters):
                 Z = self.X @ (self.X.T @ Z)
-            Q, R = la.qr(Z)
+                # Re-orthonormalize to improve numerical stability
+                Z, _ = la.qr(Z, mode="reduced")
+            Q, _ = la.qr(Z, mode="reduced")
         else:
             # If no power iteration, simply find the orthonormal basis of Z
-            Q, R = la.qr(Z)
+            Q, _ = la.qr(Z, mode="reduced")
 
         # Compute SVD on projected low-rank Y = Q.T @ self.X
         Y = Q.T @ self.X
-        U_tilde, S, Vt = la.svd(Y)
+        U_tilde, S, Vt = la.svd(Y, full_matrices=False)
         U = Q @ U_tilde
 
         # Q is useful for computing the actual error of approximation
@@ -1016,7 +1088,7 @@ class MyMatrix:
         Examples
         --------
         >>> import linalg as la
-        >>> m = la.MyMatrix([[1, 0, 12], [7, 12, 17], [9, 77, 27], [8, 7, 16]], axis=0)
+        >>> m = la.MatrixOps([[1, 0, 12], [7, 12, 17], [9, 77, 27], [8, 7, 16]], axis=0)
         >>> m.sv_plot()
         """
         s = svdvals(self.X)

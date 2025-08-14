@@ -1,4 +1,5 @@
 import numpy as np
+
 import math_tools.linalg as la
 
 
@@ -8,13 +9,13 @@ def test_cob():
     """
     # Test 1:
     new_vec = la.cob(np.array([10, -5]), np.array([3, 4]), np.array([4, -3]))
-    assert la.MyMatrix.is_coord_vec(
+    assert la.MatrixOps.is_coord_vec(
         np.array([10, -5]), new_vec, np.array([3, 4]), np.array([4, -3])
     )
 
     # Test 2:
     new_vec = la.cob((1, 1, 1), (2, 1, 0), (1, -2, -1), (-1, 2, -5))
-    assert la.MyMatrix.is_coord_vec(
+    assert la.MatrixOps.is_coord_vec(
         (1, 1, 1),
         new_vec,
         np.array([2, 1, 0]),
@@ -26,7 +27,7 @@ def test_cob():
     new_vec = la.cob(
         [1, 1, 2, 3], [1, 0, 0, 0], [0, 2, -1, 0], [0, 1, 2, 0], [0, 0, 0, 3]
     )
-    assert la.MyMatrix.is_coord_vec(
+    assert la.MatrixOps.is_coord_vec(
         [1, 1, 2, 3],
         new_vec,
         np.array([1, 0, 0, 0]),
@@ -87,9 +88,9 @@ def test_lin_ind(capfd):
     assert np.allclose(la.lin_ind([1, 2], [2, 4], [2, 1]), np.array([[2, 4]]))
 
 
-class TestMyMatrix:
+class TestMatrixOps:
     """
-    Tests for MyMatrix class.
+    Tests for MatrixOps class.
     """
 
     # ----------------- Tests for change of basis matrix function ---------------- #
@@ -102,19 +103,19 @@ class TestMyMatrix:
         # Test 1:
         assert np.allclose(
             # Change of basis from [[1, 2, -3], [4, -1, -3]] to [[0, 1, -1], [1, 0, -1]]
-            la.MyMatrix.cob_mat(
+            la.MatrixOps.cob_mat(
                 [[1, 2, -3], [4, -1, -3]], [[0, 1, -1], [1, 0, -1]], False
             ),
             # Inverse of change of basis matrix above
             np.linalg.inv(
-                la.MyMatrix.cob_mat(
+                la.MatrixOps.cob_mat(
                     [[1, 2, -3], [4, -1, -3]], [[0, 1, -1], [1, 0, -1]], True
                 )
             ),
         )
 
         # Test 2: Change of basis matrix from standard basis to an arbitrary basis
-        mat = la.MyMatrix.cob_mat(
+        mat = la.MatrixOps.cob_mat(
             [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
             [[2, 1, 0], [1, -2, -1], [-1, 2, -5]],
             False,
