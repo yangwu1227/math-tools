@@ -33,7 +33,7 @@ lint-fmt = [
    "ruff>=0.8.0",
     "mypy>=1.13.0",
 ]
-doc = [
+docs = [
     "mkdocstrings[python]>=0.25.2",
     "mkdocs-material>=9.5.31",
     "mkdocs>=1.6.0",
@@ -47,34 +47,15 @@ testpaths = [
 ]
 
 [tool.ruff]
-exclude = [
-    ".bzr",
-    ".direnv",
-    ".eggs",
-    ".git",
-    ".git-rewrite",
-    ".hg",
+extend-exclude = [
     ".ipynb_checkpoints",
-    ".mypy_cache",
-    ".nox",
-    ".pants.d",
     ".pyenv",
     ".pytest_cache",
-    ".pytype",
-    ".ruff_cache",
-    ".svn",
-    ".tox",
-    ".venv",
     ".vscode",
-    "__pypackages__",
-    "_build",
-    "buck-out",
     "build",
-    "dist",
-    "node_modules",
     "site-packages",
-    "venv",
 ]
+force-exclude = true
 line-length = 88
 indent-width = 4
 target-version = "py311"
